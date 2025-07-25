@@ -1,0 +1,218 @@
+//@version=5
+strategy("Vegas Tunnel Strategy (Dual, Enhanced) [Fixed]", "Vegas Tunnel Strategy", overlay=true, default_qty_type=strategy.percent_of_equity, default_qty_value=100)
+
+// #region Inputs
+
+// === VEGAS TUNNEL SETTINGS === //
+string string_vegas_group = "Vegas Settings"
+int int_emaTriggerLen = input.int(12, "Trigger EMA Length", group=string_vegas_group)
+int int_emaTunnelFastLen = input.int(144, "Tunnel Fast EMA Length", group=string_vegas_group)
+int int_emaTunnelSlowLen = input.int(169, "Tunnel Slow EMA Length", group=string_vegas_group)
+
+// === CONFIRMATION TUNNEL SETTINGS === //
+string string_confirm_tunnel_group = "Confirmation Tunnel Settings"
+int int_emaConfirmTunnelFastLen = input.int(576, "Confirmation Tunnel Fast EMA", group=string_confirm_tunnel_group)
+int int_emaConfirmTunnelSlowLen = input.int(676, "Confirmation Tunnel Slow EMA", group=string_confirm_tunnel_group)
+
+// === MODE SELECTOR === //
+string string_filters_group = "Filters"
+string string_marketType = input.string("Stocks", options=["Stocks", "Crypto"], title="Market Type Preset", group=string_filters_group)
+
+// === OPTIONAL FILTERS === //
+bool bool_enableMarketFilter = input.bool(false, "Use Market Trend Filter (SPY/BTC)", group=string_filters_group)
+bool bool_enableRelativeStrength = input.bool(false, "Use Relative Strength Filter", group=string_filters_group)
+bool bool_enableDailyTrendFilter = input.bool(true, "Use Daily Trend Filter (Above SMAs)", group=string_filters_group)
+string string_trendMode = input.string("Flexible", options=["Strict", "Flexible"], title="Daily Trend Filter Mode", group=string_filters_group)
+bool bool_useAdxFilter = input.bool(true, "Use ADX Trend Filter", group=string_filters_group)
+int int_adxThreshold = input.int(25, "ADX Threshold", minval=0, group=string_filters_group)
+
+
+// === STRATEGY SETTINGS === //
+string string_strategy_group = "Strategy Settings"
+bool bool_useDualChannelCross = input.bool(false, "Use Dual Channel Cross Mode", group=string_strategy_group)
+string string_tradeDirection = input.string("Both", "Trade Direction", options=["Both", "Long Only", "Short Only"], group=string_strategy_group)
+int int_cooldownBars = input.int(5, "Cooldown Bars Between Signals", minval=1, group=string_strategy_group)
+int int_atrLen = input.int(14, "ATR Length for SL", group=string_strategy_group)
+float float_atrMult = input.float(2.0, "ATR Multiplier for SL", group=string_strategy_group)
+bool bool_useTrailingStop = input.bool(true, "Use Trailing Stop", group=string_strategy_group)
+float float_tpRR = input.float(1.5, "TP Risk:Reward Ratio (if not trailing)", group=string_strategy_group)
+
+
+// === VISUALS === //
+string string_visuals_group = "Visuals"
+bool bool_showSLTP = input.bool(true, "Show SL & TP Lines", group=string_visuals_group)
+color color_sl = input.color(color.red, "SL Line Color", group=string_visuals_group)
+color color_tp = input.color(color.green, "TP Line Color", group=string_visuals_group)
+int int_lineWidth = input.int(2, "Line Width", minval=1, maxval=5, group=string_visuals_group)
+
+// #endregion
+
+// #region Calculations
+
+// === OVERRIDES === //
+bool bool_useBtcFilter = string_marketType == "Crypto"
+bool bool_useSpyFilter = string_marketType == "Stocks"
+bool bool_marketFilterActive = bool_useBtcFilter or (bool_useSpyFilter and bool_enableMarketFilter)
+bool bool_relativeStrengthActive = bool_useSpyFilter and bool_enableRelativeStrength
+bool bool_dailyTrendFilterActive = bool_enableDailyTrendFilter
+
+// === MARKET FILTER (Optional) === //
+float float_spy_close = request.security("SPY", timeframe.period, close)
+float float_spy_sma20 = request.security("SPY", timeframe.period, ta.sma(close, 20))
+float float_btc_close = request.security("BINANCE:BTCUSDT", timeframe.period, close)
+float float_btc_sma20 = request.security("BINANCE:BTCUSDT", timeframe.period, ta.sma(close, 20))
+
+bool bool_marketBullish = bool_useBtcFilter ? float_btc_close > float_btc_sma20 : float_spy_close > float_spy_sma20
+bool bool_marketBearish = bool_useBtcFilter ? float_btc_close < float_btc_sma20 : float_spy_close < float_spy_sma20
+
+// === RELATIVE STRENGTH (Optional) === //
+float float_relStrength = close / float_spy_close
+float float_relStrengthSma = ta.sma(float_relStrength, 20)
+bool bool_strongVsSpy = float_relStrength > float_relStrengthSma
+bool bool_weakVsSpy = float_relStrength < float_relStrengthSma
+
+// === DAILY TREND (Optional) === //
+float float_daily_close = request.security(syminfo.tickerid, "D", close)
+float float_daily_sma20 = request.security(syminfo.tickerid, "D", ta.sma(close, 20))
+float float_daily_sma50 = request.security(syminfo.tickerid, "D", ta.sma(close, 50))
+float float_daily_sma200 = request.security(syminfo.tickerid, "D", ta.sma(close, 200))
+
+int int_smaPassCountUp = (float_daily_close > float_daily_sma20 ? 1 : 0) + (float_daily_close > float_daily_sma50 ? 1 : 0) + (float_daily_close > float_daily_sma200 ? 1 : 0)
+int int_smaPassCountDown = (float_daily_close < float_daily_sma20 ? 1 : 0) + (float_daily_close < float_daily_sma50 ? 1 : 0) + (float_daily_close < float_daily_sma200 ? 1 : 0)
+bool bool_dailyUptrend = (string_trendMode == "Strict" and int_smaPassCountUp == 3) or (string_trendMode == "Flexible" and int_smaPassCountUp >= 2)
+bool bool_dailyDowntrend = (string_trendMode == "Strict" and int_smaPassCountDown == 3) or (string_trendMode == "Flexible" and int_smaPassCountDown >= 2)
+
+// === ADX FILTER (Optional) === //
+[_, _, float_adx] = ta.dmi(14, 14)
+bool bool_isTrending = float_adx > int_adxThreshold
+
+// === VEGAS CORE LOGIC === //
+float float_emaTrigger = ta.ema(close, int_emaTriggerLen)
+float float_emaTunnelFast = ta.ema(close, int_emaTunnelFastLen)
+float float_emaTunnelSlow = ta.ema(close, int_emaTunnelSlowLen)
+float float_emaConfirmTunnelFast = ta.ema(close, int_emaConfirmTunnelFastLen)
+float float_emaConfirmTunnelSlow = ta.ema(close, int_emaConfirmTunnelSlowLen)
+
+// --- Standard Mode Logic ---
+bool bool_isUptrend = close > float_emaTunnelFast and close > float_emaTunnelSlow
+bool bool_isDowntrend = close < float_emaTunnelFast and close < float_emaTunnelSlow
+bool bool_isConfirmUptrend = close > float_emaConfirmTunnelFast and close > float_emaConfirmTunnelSlow
+bool bool_isConfirmDowntrend = close < float_emaConfirmTunnelFast and close < float_emaConfirmTunnelSlow
+bool bool_longTrigger = ta.crossover(close, float_emaTrigger)
+bool bool_shortTrigger = ta.crossunder(close, float_emaTrigger)
+
+// --- Dual Channel Cross Mode Logic ---
+bool bool_goldenCross = ta.crossover(float_emaTunnelFast, float_emaConfirmTunnelSlow)
+bool bool_deathCross = ta.crossunder(float_emaTunnelFast, float_emaConfirmTunnelSlow)
+
+// === COOLDOWN LOGIC === //
+var int int_lastLongBar = na
+var int int_lastShortBar = na
+bool bool_longOk = na(int_lastLongBar) or bar_index - int_lastLongBar > int_cooldownBars
+bool bool_shortOk = na(int_lastShortBar) or bar_index - int_lastShortBar > int_cooldownBars
+
+// === FINAL CONDITIONS === //
+bool bool_allowLongs = string_tradeDirection == "Both" or string_tradeDirection == "Long Only"
+bool bool_allowShorts = string_tradeDirection == "Both" or string_tradeDirection == "Short Only"
+
+// --- Standard Mode Conditions ---
+bool bool_longCond_standard = not bool_useDualChannelCross and bool_allowLongs and bool_longOk and bool_isUptrend and bool_isConfirmUptrend and bool_longTrigger and (not bool_marketFilterActive or bool_marketBullish) and (not bool_relativeStrengthActive or bool_strongVsSpy) and (not bool_dailyTrendFilterActive or bool_dailyUptrend) and (not bool_useAdxFilter or bool_isTrending)
+bool bool_shortCond_standard = not bool_useDualChannelCross and bool_allowShorts and bool_shortOk and bool_isDowntrend and bool_isConfirmDowntrend and bool_shortTrigger and (not bool_marketFilterActive or bool_marketBearish) and (not bool_relativeStrengthActive or bool_weakVsSpy) and (not bool_dailyTrendFilterActive or bool_dailyDowntrend) and (not bool_useAdxFilter or bool_isTrending)
+
+// --- Dual Channel Cross Mode Conditions ---
+bool bool_longCond_dualCross = bool_useDualChannelCross and bool_allowLongs and bool_goldenCross
+bool bool_shortCond_dualCross = bool_useDualChannelCross and bool_allowShorts and bool_deathCross
+
+// #endregion
+
+// #region Strategy Execution
+
+float float_atrVal = ta.atr(int_atrLen)
+
+// === STANDARD MODE EXECUTION === //
+if (strategy.position_size == 0)
+    if (bool_longCond_standard)
+        sl = close - float_atrVal * float_atrMult
+        tp = close + float_atrVal * float_atrMult * float_tpRR
+        strategy.entry("Long", strategy.long)
+        int_lastLongBar := bar_index
+        if (bool_useTrailingStop)
+            strategy.exit("Exit TSL", "Long", trail_price=close, trail_offset=float_atrVal * float_atrMult)
+        else
+            strategy.exit("Exit", "Long", stop=sl, limit=tp)
+
+    if (bool_shortCond_standard)
+        sl = close + float_atrVal * float_atrMult
+        tp = close - float_atrVal * float_atrMult * float_tpRR
+        strategy.entry("Short", strategy.short)
+        int_lastShortBar := bar_index
+        if (bool_useTrailingStop)
+            strategy.exit("Exit TSL", "Short", trail_price=close, trail_offset=float_atrVal * float_atrMult)
+        else
+            strategy.exit("Exit", "Short", stop=sl, limit=tp)
+
+// === DUAL CHANNEL CROSS MODE EXECUTION === //
+if (bool_useDualChannelCross)
+    // Entry Logic
+    if (strategy.position_size == 0)
+        if (bool_longCond_dualCross)
+            sl = close - float_atrVal * float_atrMult
+            strategy.entry("DCC Long", strategy.long)
+            strategy.exit("DCC SL", "DCC Long", stop=sl)
+        
+        if (bool_shortCond_dualCross)
+            sl = close + float_atrVal * float_atrMult
+            strategy.entry("DCC Short", strategy.short)
+            strategy.exit("DCC SL", "DCC Short", stop=sl)
+
+    // Exit Logic (Take Profit by opposite cross)
+    if (strategy.position_size > 0 and bool_deathCross)
+        strategy.close("DCC Long", comment="DCC Long Exit")
+
+    if (strategy.position_size < 0 and bool_goldenCross)
+        strategy.close("DCC Short", comment="DCC Short Exit")
+
+// #endregion
+
+// #region Plots
+
+// === PLOTS === //
+plot(float_emaTrigger, "Trigger Line", color=color.new(color.blue, 0))
+plot_emaTunnelFast = plot(float_emaTunnelFast, "Tunnel Fast", color=color.new(color.gray, 0))
+plot_emaTunnelSlow = plot(float_emaTunnelSlow, "Tunnel Slow", color=color.new(color.gray, 0))
+fill(plot_emaTunnelFast, plot_emaTunnelSlow, color=color.new(color.gray, 85), title="Vegas Tunnel")
+
+plot_emaConfirmTunnelFast = plot(float_emaConfirmTunnelFast, "Confirm Tunnel Fast", color=color.new(color.orange, 20))
+plot_emaConfirmTunnelSlow = plot(float_emaConfirmTunnelSlow, "Confirm Tunnel Slow", color=color.new(color.orange, 20))
+fill(plot_emaConfirmTunnelFast, plot_emaConfirmTunnelSlow, color=color.new(color.orange, 90), title="Confirmation Tunnel")
+
+// --- Standard Mode Signals ---
+plotshape(bool_longCond_standard, title="Long Signal", style=shape.labelup, location = location.belowbar, color=color.green, text="BUY", textcolor=color.white)
+plotshape(bool_shortCond_standard, title="Short Signal", style=shape.labeldown, location = location.abovebar, color=color.red, text="SELL", textcolor=color.white)
+
+// --- Dual Channel Cross Mode Signals ---
+plotshape(bool_longCond_dualCross, title="Golden Cross Signal", style=shape.triangleup, location=location.belowbar, color=color.new(color.yellow, 0), size=size.large)
+plotshape(bool_shortCond_dualCross, title="Death Cross Signal", style=shape.triangledown, location=location.abovebar, color=color.new(color.purple, 0), size=size.large)
+
+
+// === SL/TP VISUALS (for Standard Mode) === //
+var line line_sl = na
+var line line_tp = na
+
+if (not bool_useDualChannelCross and strategy.position_size[1] == 0 and strategy.position_size != 0)
+    float sl_price = strategy.position_avg_price + (strategy.position_size > 0 ? -1 : 1) * float_atrVal * float_atrMult
+    float tp_price = strategy.position_avg_price + (strategy.position_size > 0 ? 1 : -1) * float_atrVal * float_atrMult * float_tpRR
+    
+    if bool_showSLTP
+        line.delete(line_sl[1])
+        line.delete(line_tp[1])
+        line_sl := line.new(bar_index, sl_price, bar_index + 1, sl_price, color=color_sl, width=int_lineWidth, extend=extend.right)
+        if not bool_useTrailingStop
+            line_tp := line.new(bar_index, tp_price, bar_index + 1, tp_price, color=color_tp, width=int_lineWidth, extend=extend.right)
+
+// Invalidate old lines when position closes
+if (strategy.position_size == 0 and strategy.position_size[1] != 0)
+    line.delete(line_sl[1])
+    line.delete(line_tp[1])
+
+// #endregion

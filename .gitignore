@@ -1,0 +1,12 @@
+# 忽略临时文件夹
+.tmp.driveupload/
+
+# 忽略环境变量文件
+.env
+
+# 忽略系统文件
+Thumbs.db
+.DS_Store
+
+# 忽略 PineScript 编译输出（如果有的话）
+*.compiled

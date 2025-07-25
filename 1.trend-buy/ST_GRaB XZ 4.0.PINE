@@ -1,0 +1,245 @@
+//@version=5
+// ST_GRaB XZ 4.0 - Refactored
+// This version is fully refactored to be runnable, logically complete, and strictly compliant with myrule.mdc.
+// Key changes: Fixed version, completed short-side filter logic, enforced strict naming conventions, and removed unused code.
+indicator("ST_GRaB XZ 4.0 (Refactored)", overlay=true)
+
+// =============================================================================
+// === MODULE: Filters =========================================================
+// =============================================================================
+
+// --- Market Trend Filter ---
+string string_marketType = input.string("Stocks", title="Market Type", options=["Stocks", "Crypto"], group="Filters")
+float float_spyClose = input.float(0.0, title="SPY Close (0 to disable)", group="Filters")
+float float_spySma20 = input.float(0.0, title="SPY 20 SMA (0 to disable)", group="Filters")
+float float_btcClose = input.float(0.0, title="BTC Close (0 to disable)", group="Filters")
+float float_btcSma20 = input.float(0.0, title="BTC 20 SMA (0 to disable)", group="Filters")
+bool bool_filterMarket = input.bool(false, title="Enable Market Trend Filter", group="Filters")
+
+isMarketBullish() =>
+    string_marketType == "Crypto" ? float_btcClose > float_btcSma20 : float_spyClose > float_spySma20
+isMarketBearish() =>
+    string_marketType == "Crypto" ? float_btcClose < float_btcSma20 : float_spyClose < float_spySma20
+
+// --- Relative Strength vs. ETH Filter ---
+bool bool_enableRsEth = input.bool(false, title="Enable ETH Relative Strength Filter", group="Filters")
+float float_ethClose = input.float(0.0, title="ETH Close (0 to disable)", group="Filters")
+int int_rsLen = input.int(14, title="Relative Strength SMA Length", group="Filters")
+
+isStrongVsEth() =>
+    float relStrength = close / float_ethClose
+    float relStrengthSma = ta.sma(relStrength, int_rsLen)
+    relStrength > relStrengthSma
+isWeakVsEth() =>
+    float relStrength = close / float_ethClose
+    float relStrengthSma = ta.sma(relStrength, int_rsLen)
+    relStrength < relStrengthSma
+
+// --- Daily Trend Filter ---
+bool bool_enableDailyTrend = input.bool(false, title="Enable Daily Trend Filter", group="Filters")
+float float_dailyClose = input.float(0.0, title="Daily Close (0 to disable)", group="Filters")
+float float_dailySma20 = input.float(0.0, title="Daily 20 SMA", group="Filters")
+float float_dailySma50 = input.float(0.0, title="Daily 50 SMA", group="Filters")
+float float_dailySma200 = input.float(0.0, title="Daily 200 SMA", group="Filters")
+string string_dailyTrendMode = input.string("Strict", title="Daily Trend Mode", options=["Strict", "Flexible"], group="Filters")
+
+isDailyUptrend() =>
+    int passCount = (float_dailyClose > float_dailySma20 ? 1 : 0) + (float_dailyClose > float_dailySma50 ? 1 : 0) + (float_dailyClose > float_dailySma200 ? 1 : 0)
+    (string_dailyTrendMode == "Strict" and passCount == 3) or (string_dailyTrendMode == "Flexible" and passCount >= 2)
+isDailyDowntrend() =>
+    int passCount = (float_dailyClose < float_dailySma20 ? 1 : 0) + (float_dailyClose < float_dailySma50 ? 1 : 0) + (float_dailyClose < float_dailySma200 ? 1 : 0)
+    (string_dailyTrendMode == "Strict" and passCount == 3) or (string_dailyTrendMode == "Flexible" and passCount >= 2)
+
+// --- Relative Volume Filter ---
+bool bool_enableHighVol = input.bool(false, title="Enable High Volume Filter", group="Filters")
+float float_highVolRatio = input.float(1.5, title="High Volume Ratio")
+int int_volAvgLenFilter = input.int(20, title="Volume SMA Length (Filter)", group="Filters")
+float float_avgVolFilter = ta.sma(volume, int_volAvgLenFilter)
+
+isHighVolume() => volume > float_avgVolFilter * float_highVolRatio
+
+// --- VWAP Filter ---
+bool bool_enableVwapFilter = input.bool(false, title="Enable VWAP Filter", group="Filters")
+float float_vwap = ta.vwap
+isAboveVwap() => close > float_vwap
+isBelowVwap() => close < float_vwap
+
+// --- Time Filter ---
+bool bool_enableTimeFilter = input.bool(false, title="Enable Time Filter", group="Filters")
+int int_sessionStart = input.int(930, title="Session Start (e.g., 0930)", group="Filters")
+int int_ignoreMinutes = input.int(0, title="Ignore Minutes After Open", group="Filters")
+
+isValidTime() =>
+    not bool_enableTimeFilter or (hour * 100 + minute >= int_sessionStart + int_ignoreMinutes)
+
+// =============================================================================
+// === MODULE: StopLoss & TakeProfit ===========================================
+// =============================================================================
+bool bool_enableSltp = input.bool(true, title="Enable Auto SL/TP Lines", group="SL/TP")
+int int_atrLen = input.int(14, title="ATR Length (for SL/TP)", group="SL/TP")
+float float_atrMult = input.float(2.0, title="StopLoss ATR Multiplier", group="SL/TP")
+float float_tpRR = input.float(1.5, title="TakeProfit Risk/Reward Ratio", group="SL/TP")
+int int_sltpLineWidth = input.int(1, title="SL/TP Line Width", group="SL/TP")
+color color_sltpSL = input.color(color.red, title="StopLoss Line Color", group="SL/TP")
+color color_sltpTP = input.color(color.green, title="TakeProfit Line Color", group="SL/TP")
+
+drawSltp(string direction, float atr) =>
+    if direction == "long"
+        float bullSL = close - atr * float_atrMult
+        float bullTP = close + (close - bullSL) * float_tpRR
+        line.new(bar_index + 2, bullSL, bar_index + 12, bullSL, color=color_sltpSL, width=int_sltpLineWidth)
+        line.new(bar_index + 2, bullTP, bar_index + 12, bullTP, color=color_sltpTP, width=int_sltpLineWidth)
+        label.new(bar_index + 12, bullSL, "SL", style=label.style_label_left, color=color_sltpSL, textcolor=color.white, size=size.tiny)
+        label.new(bar_index + 12, bullTP, "TP", style=label.style_label_left, color=color_sltpTP, textcolor=color.white, size=size.tiny)
+    if direction == "short"
+        float bearSL = close + atr * float_atrMult
+        float bearTP = close - (bearSL - close) * float_tpRR
+        line.new(bar_index + 2, bearSL, bar_index + 12, bearSL, color=color_sltpSL, width=int_sltpLineWidth)
+        line.new(bar_index + 2, bearTP, bar_index + 12, bearTP, color=color_sltpTP, width=int_sltpLineWidth)
+        label.new(bar_index + 12, bearSL, "SL", style=label.style_label_left, color=color_sltpSL, textcolor=color.white, size=size.tiny)
+        label.new(bar_index + 12, bearTP, "TP", style=label.style_label_left, color=color_sltpTP, textcolor=color.white, size=size.tiny)
+
+// =============================================================================
+// === MODULE: Cooldown ========================================================
+// =============================================================================
+bool bool_enableCooldown = input.bool(true, title="Enable Signal Cooldown", group="Cooldown")
+int int_cooldownBars = input.int(10, title="Signal Cooldown Bars", group="Cooldown")
+
+var int int_lastLongBar = na
+var int int_lastShortBar = na
+
+bool bool_longCooldownOk = na(int_lastLongBar) or bar_index - int_lastLongBar > int_cooldownBars
+bool bool_shortCooldownOk = na(int_lastShortBar) or bar_index - int_lastShortBar > int_cooldownBars
+
+// =============================================================================
+// === CORE LOGIC ==============================================================
+// =============================================================================
+
+// --- Main Parameters ---
+int int_emaLen = input.int(34, title="EMA Length", group="Core Parameters")
+string string_tradeMode = input.string("Both", title="Trade Direction", options=["Both", "Long Only", "Short Only"], group="Core Parameters")
+bool bool_useRiskRewardExit = input.bool(true, title="Enable Fixed R/R Exit", group="Core Parameters")
+float float_riskRewardRatio = input.float(1.5, title="Exit R/R Ratio", step=0.1, group="Core Parameters")
+
+// --- Display Options ---
+bool bool_showRoi = input.bool(true, title="Show ROI Label on Exit", group="Display")
+bool bool_showMainEma = input.bool(true, title="Show Main GRaB EMAs", group="Display")
+bool bool_showFilterEma = input.bool(true, title="Show Trend Filter EMAs", group="Display")
+
+// --- EMA Calculations ---
+float float_emaHigh = ta.ema(high, int_emaLen)
+float float_emaLow = ta.ema(low, int_emaLen)
+float float_ema21 = ta.ema(close, 21)
+float float_ema55 = ta.ema(close, 55)
+float float_ema100 = ta.ema(close, 100)
+float float_atr = ta.atr(int_atrLen)
+
+// --- Plotting EMAs ---
+plot(bool_showMainEma ? float_emaHigh : na, color=color.new(color.green, 50), linewidth=2, title="EMA High")
+plot(bool_showMainEma ? float_emaLow : na, color=color.new(color.red, 50), linewidth=2, title="EMA Low")
+plot(bool_showFilterEma ? float_ema21 : na, color=color.lime, title="EMA 21", linewidth=1)
+plot(bool_showFilterEma ? float_ema55 : na, color=color.gray, title="EMA 55", linewidth=1)
+plot(bool_showFilterEma ? float_ema100 : na, color=color.black, title="EMA 100", linewidth=1)
+
+// --- Bar Coloring ---
+bool bool_isBull = close > open
+bool bool_isBear = close < open
+color color_bar = close > float_emaHigh ? (bool_isBull ? color.lime : color.green) : 
+                  close < float_emaLow  ? (bool_isBear ? color.maroon : color.red) : 
+                  (bool_isBear ? color.navy : color.blue)
+barcolor(color_bar, title="GRaB Bar Color")
+
+// --- State Variables ---
+var bool bool_inLong = false
+var bool bool_inShort = false
+var float float_entryPrice = na
+var float float_stopLoss = na
+var float float_takeProfit = na
+var float float_longEntryPriceForRoi = na
+var float float_shortEntryPriceForRoi = na
+
+// --- Filter Conditions Aggregation ---
+// Note: Direction-neutral filters are used for both long and short.
+bool bool_passHighVol = not bool_enableHighVol or isHighVolume()
+bool bool_passTime = isValidTime()
+
+// Long filters
+bool bool_passMarketLong = not bool_filterMarket or isMarketBullish()
+bool bool_passRsEthLong = not bool_enableRsEth or isStrongVsEth()
+bool bool_passDailyLong = not bool_enableDailyTrend or isDailyUptrend()
+bool bool_passVwapLong = not bool_enableVwapFilter or isAboveVwap()
+bool bool_allFiltersLong = bool_passMarketLong and bool_passRsEthLong and bool_passDailyLong and bool_passVwapLong and bool_passHighVol and bool_passTime
+
+// Short filters
+bool bool_passMarketShort = not bool_filterMarket or isMarketBearish()
+bool bool_passRsEthShort = not bool_enableRsEth or isWeakVsEth()
+bool bool_passDailyShort = not bool_enableDailyTrend or isDailyDowntrend()
+bool bool_passVwapShort = not bool_enableVwapFilter or isBelowVwap()
+bool bool_allFiltersShort = bool_passMarketShort and bool_passRsEthShort and bool_passDailyShort and bool_passVwapShort and bool_passHighVol and bool_passTime
+
+// --- Entry Conditions ---
+bool bool_longTrendOk = float_ema21 > float_ema55
+bool bool_shortTrendOk = float_ema21 < float_ema55 and float_ema55 < float_ema100
+bool bool_longAllowed = string_tradeMode == "Both" or string_tradeMode == "Long Only"
+bool bool_shortAllowed = string_tradeMode == "Both" or string_tradeMode == "Short Only"
+
+bool bool_baseLongEntry = not bool_inLong and bool_longAllowed and close > float_emaHigh and bool_longTrendOk
+bool bool_baseShortEntry = not bool_inShort and bool_shortAllowed and close < float_emaLow and bool_shortTrendOk
+
+bool bool_longEntry = bool_baseLongEntry and bool_allFiltersLong and (not bool_enableCooldown or bool_longCooldownOk)
+bool bool_shortEntry = bool_baseShortEntry and bool_allFiltersShort and (not bool_enableCooldown or bool_shortCooldownOk)
+
+// --- Entry Execution ---
+if bool_longEntry
+    float_entryPrice := close
+    float_longEntryPriceForRoi := close
+    float_stopLoss := float_ema21
+    bool_inLong := true
+    float_takeProfit := bool_useRiskRewardExit ? float_entryPrice + (float_entryPrice - float_stopLoss) * float_riskRewardRatio : na
+    int_lastLongBar := bar_index
+    if bool_enableSltp
+        drawSltp("long", float_atr)
+
+if bool_shortEntry
+    float_entryPrice := close
+    float_shortEntryPriceForRoi := close
+    float_stopLoss := float_ema21
+    bool_inShort := true
+    float_takeProfit := bool_useRiskRewardExit ? float_entryPrice - (float_stopLoss - float_entryPrice) * float_riskRewardRatio : na
+    int_lastShortBar := bar_index
+    if bool_enableSltp
+        drawSltp("short", float_atr)
+
+// --- Exit Conditions ---
+bool bool_longExit = bool_inLong and ((bool_useRiskRewardExit and not na(float_takeProfit) and close >= float_takeProfit) or (close < float_ema21))
+bool bool_shortExit = bool_inShort and ((bool_useRiskRewardExit and not na(float_takeProfit) and close <= float_takeProfit) or (close > float_ema21))
+
+// --- State Updates on Exit ---
+if bool_longExit
+    bool_inLong := false
+    if bool_showRoi and not na(float_longEntryPriceForRoi)
+        float roi = (close - float_longEntryPriceForRoi) / float_longEntryPriceForRoi * 100
+        label.new(bar_index, high, text=str.tostring(roi, "+#.##;-#.##") + "%", style=label.style_label_down, color=color.green, textcolor=color.white)
+        float_longEntryPriceForRoi := na
+
+if bool_shortExit
+    bool_inShort := false
+    if bool_showRoi and not na(float_shortEntryPriceForRoi)
+        float roi = (float_shortEntryPriceForRoi - close) / float_shortEntryPriceForRoi * 100
+        label.new(bar_index, low, text=str.tostring(roi, "+#.##;-#.##") + "%", style=label.style_label_up, color=color.red, textcolor=color.white)
+        float_shortEntryPriceForRoi := na
+
+// --- Plotting Signals ---
+plotshape(bool_longEntry, title="Long Entry", location=location.belowbar, color=color.lime, style=shape.triangleup, size=size.small)
+plotshape(bool_longExit, title="Long Exit", location=location.abovebar, color=color.green, style=shape.xcross, size=size.tiny)
+plotshape(bool_shortEntry, title="Short Entry", location=location.abovebar, color=color.red, style=shape.triangledown, size=size.small)
+plotshape(bool_shortExit, title="Short Exit", location=location.belowbar, color=color.maroon, style=shape.xcross, size=size.tiny)
+
+// --- Alerts ---
+alertcondition(bool_longEntry, title="GRaB Long", message="GRaB Long Signal")
+alertcondition(bool_shortEntry, title="GRaB Short", message="GRaB Short Signal")
+
+// --- Backtest Adapter Signal ---
+int int_adapterSignal = 0
+int_adapterSignal := bool_longEntry ? 1 : bool_longExit ? 2 : bool_shortEntry ? -1 : bool_shortExit ? -2 : 0
+plot(int_adapterSignal, title="Adapter Signal", display=display.none)

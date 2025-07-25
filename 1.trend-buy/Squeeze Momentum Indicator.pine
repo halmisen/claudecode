@@ -1,0 +1,84 @@
+// @author LazyBear 
+// 修改自: https://www.tradingview.com/v/4IneGo8h/
+//
+strategy(shorttitle = "SQZMOM_CURSOR", title="Squeeze Momentum CURSOR", overlay=true, default_qty_type=strategy.percent_of_equity, default_qty_value=100)
+
+// 参数设置
+length = input(20, title="BB长度")
+mult = input(2.0, title="BB乘数")
+lengthKC = input(20, title="KC长度")
+multKC = input(1.5, title="KC乘数")
+useTrueRange = input(true, title="使用真实波幅(KC)", type=bool)
+onlyLong = input(false, title="仅做多", type=bool)
+useStopLoss = input(false, title="使用止损", type=bool)
+stopLossPercent = input(2.0, title="止损百分比", step=0.1)
+
+// 计算BB
+source = close
+basis = sma(source, length)
+dev = multKC * stdev(source, length)
+upperBB = basis + dev
+lowerBB = basis - dev
+
+// 计算KC
+ma = sma(source, lengthKC)
+range = useTrueRange ? tr : (high - low)
+rangema = sma(range, lengthKC)
+upperKC = ma + rangema * multKC
+lowerKC = ma - rangema * multKC
+
+// 计算挤压状态
+sqzOn  = (lowerBB > lowerKC) and (upperBB < upperKC)
+sqzOff = (lowerBB < lowerKC) and (upperBB > upperKC)
+noSqz  = (sqzOn == false) and (sqzOff == false)
+
+// 计算动量值
+val = linreg(source - avg(avg(highest(high, lengthKC), lowest(low, lengthKC)), sma(close, lengthKC)), 
+            lengthKC, 0)
+
+// 确定颜色
+bcolor = iff(val > 0, 
+            iff(val > nz(val[1]), lime, green),
+            iff(val < nz(val[1]), red, maroon))
+scolor = noSqz ? blue : sqzOn ? black : gray 
+
+// 绘制指标
+plot(val, color=bcolor, style=histogram, linewidth=4, title="动量柱")
+plot(0, color=scolor, style=cross, linewidth=2, title="挤压状态")
+
+// 交易信号逻辑
+isGreenBar = val > 0
+isRedBar = val < 0
+wasBlackCross = sqzOn[1]
+isGrayCross = sqzOff and not sqzOn
+wasCrossBefore = sqzOn[1] or sqzOff[1] or noSqz[1]
+isBlueCross = noSqz and not noSqz[1]
+isBlackCross = sqzOn and not sqzOn[1]
+
+// 入场信号
+longCondition = wasBlackCross and isGrayCross and isGreenBar
+shortCondition = wasBlackCross and isGrayCross and isRedBar and not onlyLong
+
+// 出场信号
+exitCondition = isBlueCross or isBlackCross or (bcolor != bcolor[1] and bcolor == gray)
+
+// 执行交易
+if (longCondition)
+    strategy.entry("做多", strategy.long)
+
+if (shortCondition)
+    strategy.entry("做空", strategy.short)
+
+// 如果符合出场条件，则平仓
+if (exitCondition)
+    strategy.close_all()
+
+// 止损设置
+if (useStopLoss)
+    strategy.exit("止损", "做多", stop=strategy.position_avg_price * (1 - stopLossPercent / 100))
+    strategy.exit("止损", "做空", stop=strategy.position_avg_price * (1 + stopLossPercent / 100))
+
+// 在图表上显示信号
+plotshape(longCondition, title="做多信号", location=location.belowbar, color=lime, style=shape.triangleup, size=size.small)
+plotshape(shortCondition, title="做空信号", location=location.abovebar, color=red, style=shape.triangledown, size=size.small)
+plotshape(exitCondition and (strategy.position_size != 0), title="平仓信号", location=location.belowbar, color=gray, style=shape.circle, size=size.small)

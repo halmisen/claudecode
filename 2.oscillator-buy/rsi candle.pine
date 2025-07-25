@@ -1,0 +1,29 @@
+//@version=6
+indicator(title="RSI Candle Color", overlay=true)
+
+// 定义RSI参数
+rsi_length = input.int(14, "RSI周期", minval=1)
+overbought = input.int(70, "超买阈值", minval=50, maxval=100)
+oversold = input.int(30, "超卖阈值", minval=0, maxval=50)
+show_labels = input.bool(true, "显示RSI数值标签")
+
+// 计算RSI
+rsi = ta.rsi(close, rsi_length)
+
+// 定义K线颜色
+candle_color = if rsi >= overbought
+    color.red
+else if rsi <= oversold
+    color.green
+else
+    na
+
+// 设置K线颜色
+barcolor(candle_color)
+
+// 在K线旁显示RSI数值
+if show_labels and barstate.islast
+    label_style = rsi >= overbought ? label.style_label_down : rsi <= oversold ? label.style_label_up : label.style_none
+    if label_style != label.style_none
+        label.new(x=bar_index, y=high, text=str.tostring(math.round(rsi,2)), style=label_style, color=color.new(#FFFFFF,0), textcolor=color.black)
+        label.new(x=bar_index, y=high, text="RSI: " + str.tostring(rsi, "#.##"), style=label_style, color=candle_color, textcolor=color.white)

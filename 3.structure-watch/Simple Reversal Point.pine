@@ -1,0 +1,22 @@
+//@version=4
+// © Dreadblitz
+study(title="Simple Reversal Point", shorttitle="SRP", overlay=true)
+//
+c1 = close[1] < open[1] and close > open
+c2 = close > open[1]
+c3 = lowest(low,3) < lowest (low,50)[1] or lowest(low,3) < lowest(low,50)[2] or lowest(low,3) < lowest(low,50)[3]
+buy = c1 and c2 and c3
+//
+c4 = close[1] > open[1] and close < open
+c5 = close < open[1]
+c6 = highest(high,3) > highest (high,50)[1] or highest(high,3) > highest(high,50)[2] or highest(high,3) > highest(high,50)[3]
+sell = c4 and c5 and c6
+//
+plotshape(buy == 1 , text='💣', style=shape.arrowup, location=location.belowbar, color=#32CD32, textcolor=color.white, offset=0, transp=0,size=size.auto)
+plotshape(sell == 1 , text='🔨', style=shape.arrowdown, location=location.abovebar, color=#FF0000, textcolor=color.white, offset=0, transp=0,size=size.auto)
+//
+alertcondition(sell == 1 ,title="Sell",message="Sell")
+alertcondition(buy == 1 ,title="Buy",message="Buy")
+alertcondition(buy == 1 or sell == 1 ,title="Buy/Sell",message="Buy/Sell")
+//
+
