@@ -4,11 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a collection of Pine Script trading indicators and strategies for TradingView. The codebase contains technical analysis tools organized by category, with both indicator overlays and strategy implementations.
+This is a comprehensive trading algorithm development project featuring both Pine Script indicators for TradingView and Python backtesting frameworks. The codebase contains technical analysis tools, trading strategies, and complete backtesting environments using Jesse and VectorBT frameworks.
 
 ## Code Architecture
 
 ### Directory Structure
+
+#### Pine Script Components
 - `indicators/` - All indicator files organized by type
   - `trend/` - Trend-following indicators (EMA, KCB, GRaB systems)
   - `oscillator/` - Oscillator-based indicators (RSI, SQZMOM, WaveTrend)
@@ -22,6 +24,20 @@ This is a collection of Pine Script trading indicators and strategies for Tradin
   - `reversal/` - Reversal pattern strategies
 - `utils/` - Utility functions and helper scripts
 - `docs/` - Documentation and coding standards
+
+#### Python Backtesting Frameworks
+- `jesse/` - Jesse trading framework setup
+  - `strategies/` - Strategy implementations for Jesse
+  - `indicators/` - Technical indicators in Python
+  - `data/` - Data fetching and processing utilities
+  - `utils/` - Helper functions and tools
+  - `requirements.txt` - Python dependencies
+- `vectorbt/` - VectorBT backtesting framework setup
+  - `strategies/` - Strategy implementations for VectorBT
+  - `indicators/` - Technical indicators in Python
+  - `data/` - Data fetching and processing utilities
+  - `utils/` - Helper functions and tools
+  - `requirements.txt` - Python dependencies
 
 ## Pine Script Standards
 All code follows the **PineScript v5 Golden Rulebook V1.1**:
@@ -291,11 +307,34 @@ if barstate.islast
 
 ## Development Workflow
 
-There are no build/test commands as Pine Scripts run directly in TradingView. Development involves:
+### Pine Script Development
 1. Creating/modifying `.pine` files
 2. Testing in TradingView editor
 3. Validating against the Golden Rulebook standards
 4. Committing changes with descriptive messages
+
+### Python Development
+1. **Environment Setup**: Use virtual environments for each framework
+   ```bash
+   cd jesse && python -m venv jesse_env && source jesse_env/bin/activate  # or jesse_env\Scripts\activate on Windows
+   cd vectorbt && python -m venv venv && source venv/bin/activate  # or venv\Scripts\activate on Windows
+   ```
+
+2. **Dependency Management**: Install requirements from respective directories
+   ```bash
+   cd jesse && pip install -r requirements.txt
+   cd vectorbt && pip install -r requirements.txt
+   ```
+
+3. **Data Management**: Fetch and prepare data using provided utilities
+   ```bash
+   cd jesse/data && python fetch_data.py
+   cd vectorbt/data && python fetch_data.py
+   ```
+
+4. **Strategy Development**: Create and test strategies in respective framework directories
+5. **Backtesting**: Run backtests using framework-specific commands
+6. **Validation**: Compare results across frameworks and with Pine Script implementations
 
 ## Command Line Operations
 
@@ -337,3 +376,56 @@ When reorganizing large numbers of files:
 - Consistent extension: `.pine` → `.PINE`
 
 ### Clean, efficient, and predictable code is the ultimate goal! 🚀
+
+## Python Backtesting Standards
+
+### Framework Guidelines
+
+#### Jesse Framework
+- **Structure**: Follow Jesse's recommended directory structure
+- **Routes**: Use `routes.py` for defining trading routes and timeframes
+- **Strategies**: Inherit from `Strategy` class, implement `should_long`, `should_short`, `go_long`, `go_short`
+- **Data**: Use Jesse's built-in data fetching or custom data utilities
+- **Testing**: Use `jesse.trade()` for backtesting and `jesse.live()` for paper trading
+
+#### VectorBT Framework
+- **Structure**: Organize by strategy type and timeframe
+- **Data**: Use pandas DataFrames with OHLCV format
+- **Indicators**: Leverage VectorBT's built-in indicators or custom pandas-based implementations
+- **Backtesting**: Use vectorbt.Portfolio for portfolio-level backtesting
+- **Optimization**: Utilize VectorBT's parameter optimization capabilities
+
+### Python Coding Standards
+
+#### Code Quality
+- Follow PEP 8 style guidelines
+- Use type hints where appropriate
+- Implement comprehensive error handling
+- Add docstrings for all public functions and classes
+- Use logging for debugging and monitoring
+
+#### Data Management
+- Store data in efficient formats (CSV, Parquet, HDF5)
+- Implement data validation and cleaning
+- Use caching for expensive computations
+- Handle missing data appropriately
+
+#### Performance Optimization
+- Use vectorized operations with pandas/numpy
+- Implement parallel processing for computationally intensive tasks
+- Optimize memory usage for large datasets
+- Use appropriate data types for numerical computations
+
+### Strategy Development
+
+#### Conversion from Pine Script to Python
+- Adapt Pine Script logic to Python/pandas paradigms
+- Implement equivalent technical indicators using pandas operations
+- Handle timeframe conversions and resampling
+- Maintain consistency in signal generation and trade execution logic
+
+#### Testing and Validation
+- Implement unit tests for individual components
+- Use cross-validation for strategy robustness
+- Compare results with original Pine Script implementations
+- Document performance characteristics and limitations
