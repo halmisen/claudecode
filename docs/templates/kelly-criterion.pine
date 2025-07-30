@@ -1,0 +1,65 @@
+//––– Kelly Stats –––
+// This code block calculates and displays Kelly criterion statistics.
+// It runs only on the last bar to collect data from all closed trades.
+
+// Function to calculate the sample variance of a float array.
+arrayVariance(src) =>
+    float float_mean = array.avg(src)
+    float float_sumOfSquares = 0.0
+    for i = 0 to array.size(src) - 1
+        float_sumOfSquares += math.pow(array.get(src, i) - float_mean, 2)
+    int int_n = array.size(src)
+    float result = int_n > 1 ? float_sumOfSquares / (int_n - 1) : 0.0
+    result
+
+// 1. Declare a global array to store the return of each trade.
+//    Use the 'var' keyword to ensure the array persists across bars.
+var array<float> array_float_tradeReturns = array.new_float()
+
+// 2. Main logic block, executed only on the last historical bar.
+if barstate.islast
+    // Populate the array from all closed trades.
+    if strategy.closedtrades > 0 and array.size(array_float_tradeReturns) == 0
+        for i = 0 to strategy.closedtrades - 1
+            // Calculate the initial capital of the trade for v5.
+            float float_entryVal = strategy.closedtrades.entry_price(i) * strategy.closedtrades.size(i)
+            // Avoid division by zero error if capital is not zero.
+            if float_entryVal != 0
+                // Calculate the percentage return of this trade.
+                float float_tradeReturn = (strategy.closedtrades.profit(i) / float_entryVal) * 100
+                // Store the return in the global array.
+                array.push(array_float_tradeReturns, float_tradeReturn)
+
+    // 3. If there is trade data, calculate Kelly criterion statistics.
+    float float_meanReturn = na
+    float float_varianceReturn = na
+    float float_kellyFraction = na
+
+    if array.size(array_float_tradeReturns) > 0
+        // Calculate the average return (average profit percentage per trade).
+        float_meanReturn := array.avg(array_float_tradeReturns)
+        // Calculate the variance of returns (sample variance) using the custom function.
+        float_varianceReturn := arrayVariance(array_float_tradeReturns)
+        // Calculate the Kelly fraction, handling the case where variance is zero.
+        if float_varianceReturn != 0
+            float_kellyFraction := float_meanReturn / float_varianceReturn
+
+    // 4. Display statistics in a table on the chart.
+    //    The table is created only once and updated on the last bar.
+    var table table_kellyStats = table.new(position.top_left, 2, 4, border_width = 1)
+    if barstate.islast
+        // Table header
+        table.cell(table_kellyStats, 0, 0, "Metric", bgcolor = color.new(color.blue, 75))
+        table.cell(table_kellyStats, 1, 0, "Value", bgcolor = color.new(color.blue, 75))
+        
+        // Average return
+        table.cell(table_kellyStats, 0, 1, "Mean Return (%)")
+        table.cell(table_kellyStats, 1, 1, str.tostring(float_meanReturn, "0.00"))
+        
+        // Return variance
+        table.cell(table_kellyStats, 0, 2, "Return Variance")
+        table.cell(table_kellyStats, 1, 2, str.tostring(float_varianceReturn, "0.00"))
+
+        // Kelly fraction
+        table.cell(table_kellyStats, 0, 3, "Kelly Fraction")
+        table.cell(table_kellyStats, 1, 3, str.tostring(float_kellyFraction, "0.00"))
