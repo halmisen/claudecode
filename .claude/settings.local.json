@@ -27,7 +27,8 @@
       "Bash(mv:*)",
       "Bash(ls:*)",
       "Bash(dir docsarchive)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "WebFetch(domain:docs.anthropic.com)"
     ],
     "deny": []
   }

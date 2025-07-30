@@ -77,6 +77,7 @@ This is a comprehensive trading algorithm development project featuring both Pin
 - **Adding Kelly Statistics**: Use `docs/templates/kelly-criterion.pine` template
 - **Strategy Configuration**: Use `docs/templates/strategy-config.pine` template
 - **File Organization**: Refer to `docs/development-workflow.md` for naming conventions
+- **Strategy Conversion**: Use `docs/strategy-conversion.md` for Pine → Python automation
 
 #### Python Development
 - **Framework Setup**: Use `docs/python-frameworks-guide.md` for environment setup
@@ -96,9 +97,11 @@ For specific tasks, Claude Code should:
 1. **Check CLAUDE.md first** for high-level guidance
 2. **Refer to appropriate sub-agent** for detailed implementation:
    - Pine Script standards → `docs/pine-script-standards.md`
+   - Strategy conversion → `docs/strategy-conversion.md`
    - Python frameworks → `docs/python-frameworks-guide.md`
    - Development workflow → `docs/development-workflow.md`
    - Code templates → `docs/templates/`
+   - Context management → `docs/context-management-agent.md`
 3. **Follow the documented patterns** while maintaining consistency across the codebase
 
 ### File Creation Priority
@@ -108,4 +111,31 @@ When creating new files:
 2. **Use appropriate templates** when available
 3. **Follow naming conventions** from development workflow
 4. **Include proper documentation** as specified in standards
+
+## Context Management
+
+### Automated Context Monitoring
+Claude Code includes automated context management through the context management sub-agent (`docs/context-management-agent.md`). This sub-agent:
+
+- **Monitors conversation length** and provides compact recommendations
+- **Tracks context usage patterns** and performance indicators
+- **Suggests optimal timing** for context cleanup
+- **Provides focused compact commands** for task switching
+
+### Context Management Commands
+- **`/context-check`**: Analyze current conversation and provide compact recommendations
+- **`/context-stats`**: Show statistics about current context usage
+- **`/compact-help`**: Get help with context management best practices
+
+### When to Use Context Management
+- **After 15+ messages** in a single conversation
+- **When switching between major tasks** (e.g., from git operations to coding)
+- **When response times increase** noticeably
+- **Before starting new complex tasks**
+
+### Compact Best Practices
+- **Use focused compacts**: `/compact focus on [current_task]`
+- **Compact at task boundaries**: Clean context when finishing major work
+- **Monitor performance**: Watch for degraded response quality
+- **Regular maintenance**: Compact periodically during long development sessions
 
