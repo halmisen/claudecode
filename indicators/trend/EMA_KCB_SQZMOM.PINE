@@ -1,0 +1,243 @@
+// ⌘ SUMMARY:
+// Type: indicator
+// Purpose: Combined EMA, Keltner Channels, RSI, and Squeeze Momentum indicator
+// Key Inputs: EMA colors, KCB parameters, SQZMOM settings, RSI candle coloring, divergence options
+// Outputs: Multiple EMAs, KCB bands with squeeze coloring, RSI candle colors, divergence lines
+// Functions: esma(), ta.linreg, squeeze detection logic, divergence detection
+// Logic: Integrates multiple indicators - plots EMAs, creates KCB with squeeze momentum coloring, adds RSI candle coloring and divergence detection
+
+///@version=6
+indicator("EMA-KCB-RSI + SQZMOM 融合版 v2.3", overlay=true)
+
+// === EMA 均线 ===
+ema21 = ta.ema(close, 21)
+ema55 = ta.ema(close, 55)
+ema100 = ta.ema(close, 100)
+ema200 = ta.ema(close, 200)
+
+ema21_color = input.color(color.gray, "EMA21颜色")
+ema55_color = input.color(color.gray, "EMA55颜色")
+ema100_color = input.color(color.gray, "EMA100颜色")
+ema200_color = input.color(color.gray, "EMA200颜色")
+
+plot(bar_index > 0 ? ema21 : na, color=ema21_color, linewidth=1, title="EMA21")
+plot(bar_index > 0 ? ema55 : na, color=ema55_color, linewidth=1, title="EMA55")
+plot(bar_index > 0 ? ema100 : na, color=ema100_color, linewidth=1, title="EMA100")
+plot(bar_index > 0 ? ema200 : na, color=ema200_color, linewidth=1, title="EMA200")
+
+// === KCB 通道 ===
+esma(source, length, _exp)=>
+    _exp ? ta.ema(source, length) : ta.sma(source, length)
+
+// 从原始KCB指标中完全还原以下参数
+src_inner = input.source(high, title="Inside Band Source")
+src_outer = input.source(high, title="Outside Band Source")
+use_rma = input.bool(true, "使用RMA代替ATR", inline="rma")
+exp_basis = input.bool(true, "使用EMA中轨")
+
+length_inner = input.int(77, "Inside Band Length")
+mult_inner = input.float(4.0, "Inside Band Mult")
+length_outer = input.int(36, "Outside Band Length")
+mult_outer = input.float(8.0, "Outside Band Mult")
+
+atrLength_inner = input.int(10, "Inside Band ATR Length")
+atrLength_outer = input.int(10, "Outside Band ATR Length")
+
+basis = esma(src_outer, length_outer, exp_basis)
+
+rangema_inner = use_rma ? ta.rma(high - low, length_inner) : ta.atr(atrLength_inner)
+rangema_outer = use_rma ? ta.rma(high - low, length_outer) : ta.atr(atrLength_outer)
+
+upper_inner = basis + rangema_inner * mult_inner
+lower_inner = basis - rangema_inner * mult_inner
+upper_outer = basis + rangema_outer * mult_outer
+lower_outer = basis - rangema_outer * mult_outer
+
+// === SQZMOM 挤压判断逻辑（完全采用 LazyBear 原始 BB + KC 算法） ===
+// 根据LazyBear注释：这是John Carter的"TTM Squeeze"波动指标的衍生版本
+sqz_group = "=== SQZMOM Settings ==="
+sqz_length = input.int(20, "SQZMOM Length", group=sqz_group)
+sqz_multBB = input.float(2.0, "BB Mult", group=sqz_group)
+sqz_multKC = input.float(1.5, "KC Mult", group=sqz_group)
+useTrueRange = input.bool(true, "使用 True Range 计算 KC", group=sqz_group)
+show_sqz_markers = input.bool(false, "显示SQZMOM原始十字标记", group=sqz_group)
+
+// 计算布林带 (BB) - 严格按照原始SQZMOM参数
+source = close
+bb_basis = ta.sma(source, sqz_length)
+// 修正: stdev计算使用与原始SQZMOM完全一致的计算方式
+bb_dev = ta.stdev(source, sqz_length) * sqz_multBB
+upperBB = bb_basis + bb_dev
+lowerBB = bb_basis - bb_dev
+
+// 计算肯特纳通道 (KC) - 严格按照原始SQZMOM参数
+ma = ta.sma(source, sqz_length)
+// 设置true参数确保与原始指标一致的计算方式
+kc_range = useTrueRange ? ta.tr(true) : (high - low)
+rangema = ta.sma(kc_range, sqz_length)
+upperKC = ma + rangema * sqz_multKC
+lowerKC = ma - rangema * sqz_multKC
+
+// 挤压状态判断 - 与原始SQZMOM保持一致的变量命名
+// 黑色十字 = 挤压中, 灰色十字 = 挤压释放, 无标记 = 无挤压
+sqzOn = (lowerBB > lowerKC) and (upperBB < upperKC)
+sqzOff = (lowerBB < lowerKC) and (upperBB > upperKC)
+noSqz = (sqzOn == false) and (sqzOff == false)
+
+// 计算动量值 (完全复制原始SQZMOM的计算方式)
+// LazyBear的注释提到他使用了基于线性回归的方法来绘制直方图
+val = ta.linreg(source - math.avg(math.avg(ta.highest(high, sqz_length), ta.lowest(low, sqz_length)), ta.sma(close, sqz_length)), sqz_length, 0)
+
+// === 通道颜色填充与边缘线颜色（严格与挤压状态匹配） ===
+band_gradients = input.bool(true, "启用通道渐变色", group=sqz_group)
+band_bull_color = input.color(#00E600, "多头颜色", group=sqz_group, inline="1")
+band_bear_color = input.color(#FF0000, "空头颜色", group=sqz_group, inline="1")
+
+// 根据动量值和挤压状态设置颜色（与原始SQZMOM指标完全一致）
+// 使用与原始SQZMOM完全一致的命名和逻辑
+bcolor = if val > 0
+    if val > nz(val[1])
+        color.lime  // 上升动量增强
+    else
+        color.green  // 上升动量减弱
+else
+    if val < nz(val[1])
+        color.red  // 下降动量增强
+    else
+        color.maroon  // 下降动量减弱
+
+// 挤压状态颜色 - 修改noSqz状态为白色而不是蓝色，提高辨识度
+scolor = noSqz ? color.white : sqzOn ? color.black : color.gray
+
+// 如果启用，显示原始SQZMOM的十字标记在图表上用于验证
+if show_sqz_markers
+    // 绘制SQZMOM原始指标的0线十字标记
+    sqz_loc = lower_outer - (rangema_outer * mult_outer * 0.7)
+    sqz_color = noSqz ? color.blue : sqzOn ? color.black : color.gray
+    plotshape(series=true, title="SQZMOM十字", location=location.absolute, color=sqz_color, style=shape.xcross, size=size.small, yloc=yloc.price, price=sqz_loc)
+
+// 计算渐变色 (类似于EMA-KCB2 in2.pine中的实现)
+gradient_up_sig = ta.barssince(close < basis)
+gradient_lo_sig = ta.barssince(close > basis)
+
+gradient_up_col = band_gradients ? color.from_gradient(gradient_up_sig, 0, 250, color.new(color.gray, 90), band_bear_color) : color.new(color.gray, 90)
+gradient_lo_col = band_gradients ? color.from_gradient(gradient_lo_sig, 0, 250, color.new(color.gray, 90), band_bull_color) : color.new(color.gray, 90)
+
+// 绘制通道线 - 使用SQZMOM的挤压状态颜色设置通道线颜色
+p_upper_outer = plot(upper_outer, title="Outside Upper", color=scolor, linewidth=1)
+p_lower_outer = plot(lower_outer, title="Outside Lower", color=scolor, linewidth=1)
+p_upper_inner = plot(upper_inner, title="Inside Upper", color=color.gray, style=plot.style_line)
+p_lower_inner = plot(lower_inner, title="Inside Lower", color=color.gray, style=plot.style_line)
+
+// 通道填充 - 结合挤压状态和动量方向
+fillColor = sqzOn ? color.new(color.black, 85) : na
+fill(p_upper_inner, p_upper_outer, color=sqzOn ? fillColor : gradient_up_col, title="Outside Upper Background")
+fill(p_lower_inner, p_lower_outer, color=sqzOn ? fillColor : gradient_lo_col, title="Outside Lower Background")
+fill(p_upper_inner, p_lower_inner, color=color.new(color.gray, 95), title="Inside Background")
+
+// 添加挤压状态指示器
+sqz_signal_group = "=== 挤压信号显示 ==="
+show_sqz_signal = input.bool(true, "显示挤压信号", group=sqz_signal_group)
+
+// 在图表底部显示挤压状态信号
+if show_sqz_signal and barstate.islast
+    sqz_status = sqzOn ? "挤压中" : sqzOff ? "挤压释放" : "无挤压"
+    sqz_color = scolor
+    label.new(bar_index, lower_outer - (rangema_outer * mult_outer * 0.5), 
+              text=sqz_status + " | 动量: " + str.tostring(math.round(val, 2)), 
+              style=label.style_label_up, 
+              color=color.new(sqz_color, 80), 
+              textcolor=bcolor, 
+              size=size.small)
+
+// === RSI 超买超卖 K线染色 ===
+rsi_candle_group = "=== RSI K线颜色设置 ==="
+use_rsi_candle = input.bool(true, "启用RSI超买超卖K线颜色", group=rsi_candle_group, inline="0")
+rsi_length = input.int(14, "RSI Length", group=rsi_candle_group, inline="0")
+overbought = input.int(70, "超买阈值", minval=50, maxval=100, group=rsi_candle_group, inline="1")
+oversold = input.int(30, "超卖阈值", minval=0, maxval=50, group=rsi_candle_group, inline="1")
+overbought_color = input.color(color.red, "超买颜色", group=rsi_candle_group, inline="2")
+oversold_color = input.color(color.green, "超卖颜色", group=rsi_candle_group, inline="2")
+
+// 计算RSI
+rsi = ta.rsi(close, rsi_length)
+
+// 定义RSI超买超卖K线颜色
+candle_color = if use_rsi_candle
+    if rsi >= overbought
+        overbought_color
+    else if rsi <= oversold
+        oversold_color
+    else
+        na
+else
+    na
+
+// 设置K线颜色
+barcolor(candle_color)
+
+// === RSI 背离识别 ===
+divergence_group = "=== RSI 背离设置 ==="
+show_divergence = input.bool(true, "显示RSI背离", group=divergence_group, inline="0")
+div_line_col = input.color(color.black, "背离线颜色", group=divergence_group, inline="0")
+show_rsi_val = input.bool(false, "显示RSI数值", group=divergence_group, inline="1")
+
+offset = 2
+rsi_low = ta.pivotlow(rsi, 3, offset)
+price_low = ta.pivotlow(close, 3, offset)
+rsi_high = ta.pivothigh(rsi, 3, offset)
+price_high = ta.pivothigh(close, 3, offset)
+
+// 低点数组
+var float[] rsi_recent_low = array.new_float()
+var float[] price_recent_low = array.new_float()
+var int[] rsi_recent_low_i = array.new_int()
+var int[] price_recent_low_i = array.new_int()
+
+// 高点数组
+var float[] rsi_recent_high = array.new_float()
+var float[] price_recent_high = array.new_float()
+var int[] rsi_recent_high_i = array.new_int()
+var int[] price_recent_high_i = array.new_int()
+
+if not na(price_low)
+    array.unshift(price_recent_low, price_low)
+    array.unshift(price_recent_low_i, bar_index - offset)
+    array.unshift(rsi_recent_low, rsi_low)
+    array.unshift(rsi_recent_low_i, bar_index - offset)
+
+if not na(price_high)
+    array.unshift(price_recent_high, price_high)
+    array.unshift(price_recent_high_i, bar_index - offset)
+    array.unshift(rsi_recent_high, rsi_high)
+    array.unshift(rsi_recent_high_i, bar_index - offset)
+
+div(osc_array, price_array, index_array, direction) =>
+    if array.size(osc_array) > 1 and array.size(price_array) > 1
+        bull_osc_sig = array.get(osc_array, 0) > array.get(osc_array, 1)
+        bull_price_sig = array.get(price_array, 0) < array.get(price_array, 1)
+        bear_osc_sig = array.get(osc_array, 0) < array.get(osc_array, 1)
+        bear_price_sig = array.get(price_array, 0) > array.get(price_array, 1)
+        sig = direction == "Bull" ? bull_osc_sig and bull_price_sig : bear_osc_sig and bear_price_sig
+        if sig
+            // 绘制背离线
+            x1 = array.get(index_array, 1)
+            x2 = array.get(index_array, 0)
+            y1 = array.get(price_array, 1)
+            y2 = array.get(price_array, 0)
+            line.new(x1, y1, x2, y2, color=div_line_col)
+
+            if show_rsi_val
+                // 标签方向
+                label_style = direction == "Bull" ? label.style_label_up : label.style_label_down
+                // 绘制标签
+                label.new(x1, y1, text=str.tostring(math.round(array.get(osc_array, 1), 2)), 
+                          style=label_style, color=color.new(#FFFFFF, 0), textcolor=color.black)
+                label.new(x2, y2, text=str.tostring(math.round(array.get(osc_array, 0), 2)), 
+                          style=label_style, color=color.new(#FFFFFF, 0), textcolor=color.black)
+
+// 只有在启用背离显示时才执行背离检测
+if not na(price_low) and show_divergence
+    div(rsi_recent_low, price_recent_low, price_recent_low_i, "Bull")
+if not na(price_high) and show_divergence
+    div(rsi_recent_high, price_recent_high, price_recent_high_i, "Bear")

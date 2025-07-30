@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(copy:*)",
+      "Bash(cp:*)",
+      "Bash(rm -rf \"C:\\Users\\fiver\\Documents\\augment-projects\\KFC\\1.trend-buy\")",
+      "Bash(rm:*)"
+    ],
+    "deny": []
+  }
+}
