@@ -10,18 +10,18 @@
 strategy(title="Doji Ashi v2.6 Strategy 8.1", overlay=true, initial_capital=500, default_qty_type=strategy.percent_of_equity, default_qty_value=20, margin_long=25, margin_short=25, commission_type=strategy.commission.percent, commission_value=0.02)
 
 // === MODE SELECTOR === //
-market_type = input.string("crypto", options=["Stocks", "crypto"], title="Market Type Preset", tooltip="Choose 'Stocks' to enable filters relevant to equities (e.g. SPY comparison). Choose 'crypto' to enable BTC market filter and crypto-optimized defaults.")
-trade_direction = input.string("long", options=["long", "short", "both"], title="Trade Direction", tooltip="Choose 'long' for long trades only, 'short' for short trades only, or 'both' for both directions.")
+market_type = input.string("Stocks", options=["Stocks", "Crypto"], title="Market Type Preset", tooltip="Choose 'Stocks' to enable filters relevant to equities (e.g. SPY comparison). Choose 'Crypto' to enable BTC market filter and crypto-optimized defaults.")
+trade_direction = input.string("Both", options=["Long", "Short", "Both"], title="Trade Direction", tooltip="Choose 'Long' for long trades only, 'Short' for short trades only, or 'Both' for both directions.")
 
 // === INPUT SETTINGS === //
 // Raw inputs with constant defaults
 enable_market_filter_input = input.bool(false, "Use Market Trend Filter (SPY/BTC)", tooltip="When enabled, trades are only taken if the market index (SPY or BTC) is trending in the same direction as the signal.")
-enle_relative_strength_input = input.bool(false, "Use Relative Strength Filter", tooltip="When enabled, the asset must be outperforming the SPY (for longs) or underperforming (for shorts).")
+enable_relative_strength_input = input.bool(false, "Use Relative Strength Filter", tooltip="When enabled, the asset must be outperforming the SPY (for longs) or underperforming (for shorts).")
 enable_daily_trend_filter_input = input.bool(true, "Use Daily Trend Filter (Above SMAs)", tooltip="When enabled, trades are filtered based on daily trend strength determined by the 20, 50, and 200 SMAs.")
-trend_mode = input.string("Flexible", options=["Strict", "Flexible"], title="Daily Trend Filter Mode", tooltip="'Strict' requires all 3 SMAs aligned. 'Flexible' allows for 2 out of 3 to confirm trend direction.")
+trend_mode = input.string("Strict", options=["Strict", "Flexible"], title="Daily Trend Filter Mode", tooltip="'Strict' requires all 3 SMAs aligned. 'Flexible' allows for 2 out of 3 to confirm trend direction.")
 enable_volume_filter = input.bool(false, "Use Relative Volume Filter", tooltip="When enabled, trades require volume to be at least 20% above the 20-bar average.")
 enable_time_filter = input.bool(false, "Ignore First Minutes of Market Open", tooltip="Skips trades in the first session minutes you specify to avoid early market volatility.")
-ignore_hour = input.int(1, "Ignore Start Hour (UTC)", minval=0, maxval=23, tooltip="Hour of day in UTC to start ignoring trades.")
+ignore_hour = input.int(14, "Ignore Start Hour (UTC)", minval=0, maxval=23, tooltip="Hour of day in UTC to start ignoring trades.")
 ignore_minute = input.int(30, "Ignore Start Minute (UTC)", minval=0, maxval=59, tooltip="Minute of hour to start ignoring trades.")
 ignore_minutes = input.int(30, minval=1, title="Minutes to Ignore", tooltip="How many minutes to skip after market/session open.")
 enable_vwap_filter_entry_input = input.bool(false, "Use VWAP for Entry Filter", tooltip="Ensures long trades only occur above VWAP and short trades below VWAP. Helps confirm intraday trend alignment.")
@@ -43,11 +43,11 @@ use_time_exit = input.bool(false, "Use Time-based Exit", tooltip="Close position
 max_bars_in_trade = input.int(100, "Max Bars in Trade", minval=1, tooltip="Maximum number of bars to hold a position before closing.")
 
 // === VISUALIZATION SETTINGS === //
-show_sltp = input.bool(false, "Show SL/TP Levels", tooltip="Display Stop Loss and Take Profit levels based on ATR calculation when signals are triggered.")
+show_sltp = input.bool(true, "Show SL/TP Levels", tooltip="Display Stop Loss and Take Profit levels based on ATR calculation when signals are triggered.")
 sl_color = input.color(color.red, "SL Line Color", tooltip="Color for Stop Loss lines.")
 tp_color = input.color(color.green, "TP Line Color", tooltip="Color for Take Profit lines.")
 line_width = input.int(2, "SL/TP Line Width", minval=1, maxval=5, tooltip="Width of SL/TP lines on chart.")
-plot_vwap = input.bool(false, "Show VWAP Line", tooltip="Display VWAP line on chart.")
+plot_vwap = input.bool(true, "Show VWAP Line", tooltip="Display VWAP line on chart.")
 
 // Override filters based on market type
 use_btc_filter = market_type == "Crypto"
