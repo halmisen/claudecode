@@ -4,7 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a comprehensive trading algorithm development project featuring Pine Script indicators for TradingView. The codebase contains technical analysis tools, trading strategies, and supporting documentation for quantitative trading development.
+This is a comprehensive trading algorithm development project featuring Pine Script indicators for TradingView and Python backtesting frameworks. The codebase contains technical analysis tools, trading strategies, and supporting documentation for quantitative trading development.
+
+### Key Components
+
+- **Pine Script Development**: Complete library of technical indicators and strategies for TradingView
+- **Python Backtesting**: Integrated Jesse framework with Docker setup for automated backtesting
+- **Documentation System**: Comprehensive guides for development workflows and standards
+- **Context Management**: Automated conversation management for efficient development sessions
 
 ## Code Architecture
 
@@ -24,12 +31,17 @@ This is a comprehensive trading algorithm development project featuring Pine Scr
   - `reversal/` - Reversal pattern strategies
 - `utils/` - Utility functions and helper scripts
 - `docs/` - Documentation and coding standards
-
+- `jesse-stack-docker/` - Docker setup for Jesse backtesting framework
+- `requirements.txt` - Python dependencies for backtesting frameworks
 
 #### Documentation & Templates
 - `docs/` - Comprehensive documentation
+  - `README.md` - Main documentation index and quick start guide
   - `pine-script-standards.md` - Complete Pine Script v5 Golden Rulebook V1.1
   - `development-workflow.md` - Development workflow and command operations
+  - `python-frameworks-guide.md` - Python backtesting frameworks guide
+  - `strategy-conversion-guide.md` - Pine Script to Python conversion guide
+  - `context-management-guide.md` - Context management and optimization guide
   - `templates/` - Reusable code templates
     - `kelly-criterion.pine` - Kelly criterion statistics implementation
     - `strategy-config.pine` - Standard strategy configuration template
@@ -42,10 +54,11 @@ This is a comprehensive trading algorithm development project featuring Pine Scr
 - **Strategy Config**: Use `docs/templates/strategy-config.pine` for standardized backtest settings
 - **File Organization**: Follow naming conventions in `docs/development-workflow.md`
 
-### Python Backtesting (Future Implementation)
-- **Framework Integration**: Python backtesting frameworks (Jesse, VectorBT) can be independently installed and integrated
-- **Environment Setup**: Use virtual environments and proper dependency management when adding Python frameworks
+### Python Backtesting (Active Implementation)
+- **Jesse Framework**: Docker-based setup in `jesse-stack-docker/` for automated backtesting
+- **Dependencies**: Complete Python environment defined in `requirements.txt`
 - **Strategy Conversion**: Pine Script logic can be adapted to Python/pandas paradigms for backtesting
+- **Live Trading**: Optional live trading module available via Jesse framework
 
 ### Development Workflow
 - **Process**: Follow the complete development workflow in `docs/development-workflow.md`
@@ -81,10 +94,11 @@ For specific tasks, Claude Code should:
 1. **Check CLAUDE.md first** for high-level guidance
 2. **Refer to appropriate sub-agent** for detailed implementation:
    - Pine Script standards → `docs/pine-script-standards.md`
-   - Strategy conversion → `docs/strategy-conversion.md`
+   - Strategy conversion → `docs/strategy-conversion-guide.md`
    - Development workflow → `docs/development-workflow.md`
+   - Python frameworks → `docs/python-frameworks-guide.md`
+   - Context management → `docs/context-management-guide.md`
    - Code templates → `docs/templates/`
-   - Context management → `docs/context-management-agent.md`
 3. **Follow the documented patterns** while maintaining consistency across the codebase
 
 ### File Creation Priority
@@ -98,7 +112,7 @@ When creating new files:
 ## Context Management
 
 ### Automated Context Monitoring
-Claude Code includes automated context management through the context management sub-agent (`docs/context-management-agent.md`). This sub-agent:
+Claude Code includes automated context management through the context management system (`docs/context-management-guide.md`). This system:
 
 - **Monitors conversation length** and provides compact recommendations
 - **Tracks context usage patterns** and performance indicators
@@ -147,3 +161,33 @@ The default input settings for `strategies/reversal/Doji_Ashi_Strategy 2.6.PINE`
     *   `3/8 MA Entry Mode`: Defaulted to `"Above/Below"`.
 
 These changes establish a cleaner starting point for strategy analysis, focusing on the daily trend filter and the EMA-based entry trigger.
+
+### Jesse Backtesting Framework Integration
+
+Added complete Docker-based Jesse backtesting framework setup:
+
+- **Docker Environment**: Complete stack in `jesse-stack-docker/` with PostgreSQL database
+- **Quick Start**: Simple `docker-compose up` to start the backtesting environment
+- **Strategy Integration**: Ready for Pine Script strategy conversion and testing
+- **Live Trading**: Optional live trading module available via Jesse framework
+- **Web Interface**: Backtesting results available at `http://localhost:3000`
+
+### Documentation System Overhaul
+
+Updated and expanded documentation system:
+
+- **Main Index**: `docs/README.md` with comprehensive documentation navigation
+- **Development Workflow**: `docs/development-workflow.md` for command operations
+- **Python Frameworks**: `docs/python-frameworks-guide.md` for Jesse/VectorBT integration
+- **Strategy Conversion**: `docs/strategy-conversion-guide.md` for Pine → Python conversion
+- **Context Management**: `docs/context-management-guide.md` for conversation optimization
+
+### Requirements Management
+
+Added complete `requirements.txt` with all necessary Python dependencies:
+
+- **Data Analysis**: pandas, numpy, pandas-ta
+- **Visualization**: matplotlib, seaborn, plotly
+- **Machine Learning**: scikit-learn, optional TensorFlow/PyTorch
+- **Backtesting**: Jesse, VectorBT (optional)
+- **Performance**: numba, scipy for optimization

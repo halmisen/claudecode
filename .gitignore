@@ -72,3 +72,6 @@ temp/
 
 # Claude settings
 .claude/settings.local.json
+
+# Jesse Docker stack (large files and runtime data)
+jesse-stack-docker/
