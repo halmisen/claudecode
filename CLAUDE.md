@@ -121,3 +121,29 @@ Claude Code includes automated context management through the context management
 - **Compact at task boundaries**: Clean context when finishing major work
 - **Monitor performance**: Watch for degraded response quality
 - **Regular maintenance**: Compact periodically during long development sessions
+
+## Recent Changes
+
+### `Doji_Ashi_Strategy 2.6.PINE` Default Settings Update
+
+The default input settings for `strategies/reversal/Doji_Ashi_Strategy 2.6.PINE` have been updated to streamline testing and provide a more focused baseline configuration.
+
+**Summary of Changes:**
+
+*   **General Filters:** Most boolean (true/false) filters have been disabled by default to allow for more targeted analysis.
+    *   `Use Market Trend Filter (SPY/BTC)`: `false`
+    *   `Use Relative Strength Filter`: `false`
+    *   `Use Relative Volume Filter`: `false`
+    *   `Use Trailing Stop`: `false`
+    *   `Use Time-based Exit`: `false`
+    *   All visualization options (`Show SL/TP Levels`, `Show VWAP Line`, etc.): `false`
+*   **Core Logic Enabled:**
+    *   `Use Daily Trend Filter (Above SMAs)`: Remains `true` as a core component of the strategy's logic.
+    *   `Use Entry Trigger`: Set to `true` to enforce the 3/8 MA entry condition.
+*   **Configuration Presets:**
+    *   `Market Type Preset`: Defaulted to `"crypto"`.
+    *   `Trade Direction`: Defaulted to `"long"`.
+    *   `Trigger MA Type`: Defaulted to `"EMA"`.
+    *   `3/8 MA Entry Mode`: Defaulted to `"Above/Below"`.
+
+These changes establish a cleaner starting point for strategy analysis, focusing on the daily trend filter and the EMA-based entry trigger.
