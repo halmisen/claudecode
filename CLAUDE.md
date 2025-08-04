@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a comprehensive trading algorithm development project featuring both Pine Script indicators for TradingView and Python backtesting frameworks. The codebase contains technical analysis tools, trading strategies, and complete backtesting environments using Jesse and VectorBT frameworks.
+This is a comprehensive trading algorithm development project featuring Pine Script indicators for TradingView. The codebase contains technical analysis tools, trading strategies, and supporting documentation for quantitative trading development.
 
 ## Code Architecture
 
@@ -25,24 +25,10 @@ This is a comprehensive trading algorithm development project featuring both Pin
 - `utils/` - Utility functions and helper scripts
 - `docs/` - Documentation and coding standards
 
-#### Python Backtesting Frameworks
-- `jesse/` - Jesse trading framework setup
-  - `strategies/` - Strategy implementations for Jesse
-  - `indicators/` - Technical indicators in Python
-  - `data/` - Data fetching and processing utilities
-  - `utils/` - Helper functions and tools
-  - `requirements.txt` - Python dependencies
-- `vectorbt/` - VectorBT backtesting framework setup
-  - `strategies/` - Strategy implementations for VectorBT
-  - `indicators/` - Technical indicators in Python
-  - `data/` - Data fetching and processing utilities
-  - `utils/` - Helper functions and tools
-  - `requirements.txt` - Python dependencies
 
 #### Documentation & Templates
 - `docs/` - Comprehensive documentation
   - `pine-script-standards.md` - Complete Pine Script v5 Golden Rulebook V1.1
-  - `python-frameworks-guide.md` - Python backtesting frameworks guide
   - `development-workflow.md` - Development workflow and command operations
   - `templates/` - Reusable code templates
     - `kelly-criterion.pine` - Kelly criterion statistics implementation
@@ -56,11 +42,10 @@ This is a comprehensive trading algorithm development project featuring both Pin
 - **Strategy Config**: Use `docs/templates/strategy-config.pine` for standardized backtest settings
 - **File Organization**: Follow naming conventions in `docs/development-workflow.md`
 
-### Python Backtesting
-- **Frameworks**: Refer to `docs/python-frameworks-guide.md` for Jesse and VectorBT guidance
-- **Environment Setup**: Use virtual environments and proper dependency management
-- **Strategy Conversion**: Adapt Pine Script logic to Python/pandas paradigms
-- **Testing**: Implement comprehensive validation against Pine Script implementations
+### Python Backtesting (Future Implementation)
+- **Framework Integration**: Python backtesting frameworks (Jesse, VectorBT) can be independently installed and integrated
+- **Environment Setup**: Use virtual environments and proper dependency management when adding Python frameworks
+- **Strategy Conversion**: Pine Script logic can be adapted to Python/pandas paradigms for backtesting
 
 ### Development Workflow
 - **Process**: Follow the complete development workflow in `docs/development-workflow.md`
@@ -79,11 +64,10 @@ This is a comprehensive trading algorithm development project featuring both Pin
 - **File Organization**: Refer to `docs/development-workflow.md` for naming conventions
 - **Strategy Conversion**: Use `docs/strategy-conversion.md` for Pine → Python automation
 
-#### Python Development
-- **Framework Setup**: Use `docs/python-frameworks-guide.md` for environment setup
-- **Strategy Implementation**: Follow framework-specific guidelines
-- **Data Management**: Use provided utilities for data fetching and processing
-- **Testing & Validation**: Implement comprehensive testing procedures
+#### Python Development (Optional Future Implementation)
+- **Framework Integration**: Python backtesting frameworks can be independently installed and integrated as needed
+- **Environment Setup**: Use virtual environments and proper dependency management when adding Python frameworks
+- **Strategy Conversion**: Pine Script logic can be adapted to Python/pandas paradigms for backtesting
 
 #### General Development
 - **Command Line Operations**: Use `docs/development-workflow.md` for file operations
@@ -98,7 +82,6 @@ For specific tasks, Claude Code should:
 2. **Refer to appropriate sub-agent** for detailed implementation:
    - Pine Script standards → `docs/pine-script-standards.md`
    - Strategy conversion → `docs/strategy-conversion.md`
-   - Python frameworks → `docs/python-frameworks-guide.md`
    - Development workflow → `docs/development-workflow.md`
    - Code templates → `docs/templates/`
    - Context management → `docs/context-management-agent.md`

@@ -1,8 +1,8 @@
-# Strategy Conversion Agent
-# Automated conversion of Pine Script strategies to Python implementations
+# 策略转换指南
+# Pine Script策略到Python实现的转换方法
 
-## Purpose
-This sub-agent provides automated conversion capabilities for transforming Pine Script strategies into Python implementations for both Jesse and VectorBT frameworks, ensuring consistency across all three platforms.
+## 目的
+本指南提供将Pine Script策略转换为Python实现的方法，支持Jesse和VectorBT框架，确保在所有三个平台间保持一致性。
 
 ## Conversion Workflow
 
