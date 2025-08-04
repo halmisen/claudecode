@@ -121,4 +121,3 @@ Claude Code includes automated context management through the context management
 - **Compact at task boundaries**: Clean context when finishing major work
 - **Monitor performance**: Watch for degraded response quality
 - **Regular maintenance**: Compact periodically during long development sessions
-
