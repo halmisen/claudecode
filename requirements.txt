@@ -43,5 +43,4 @@ loguru>=0.6.0
 # tensorflow>=2.10.0         # For advanced ML models
 # torch>=1.12.0              # For PyTorch ML models
 # jupyter>=1.0.0             # For Jupyter notebook support
-# jesse>=1.0.0               # Jesse backtesting framework
 # vectorbt[pro]>=0.24.0      # VectorBT backtesting framework

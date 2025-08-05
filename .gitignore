@@ -40,7 +40,6 @@ env/
 ENV/
 env.bak/
 venv.bak/
-jesse/jesse_env/
 vectorbt/venv/
 
 # IDE
@@ -73,5 +72,7 @@ temp/
 # Claude settings
 .claude/settings.local.json
 
-# Jesse Docker stack (large files and runtime data)
-jesse-stack-docker/
+# Temp data
+temp_data/
+
+ 

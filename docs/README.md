@@ -10,11 +10,9 @@
 - 代码组织和命名规范
 - 性能优化指南
 
-### 2. [Python 回测框架指南](./python-frameworks-guide.md)
-- Jesse 框架使用指南
-- VectorBT 框架使用指南
-- 环境设置和依赖管理
-- 策略实现模式
+### 2. [Backtrader 快速入门](./backtrader-quickstart.md)
+- **[Backtrader 核心架构指南](./backtrader-architecture-guide.md)**
+- **[Backtrader 参数参考手册](./backtrader-parameter-reference.md)**
 
 ### 3. [策略转换指南](./strategy-conversion-guide.md)
 - Pine Script 到 Python 的转换方法

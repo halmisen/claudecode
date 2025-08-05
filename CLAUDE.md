@@ -9,7 +9,8 @@ This is a comprehensive trading algorithm development project featuring Pine Scr
 ### Key Components
 
 - **Pine Script Development**: Complete library of technical indicators and strategies for TradingView
-- **Python Backtesting**: Integrated Jesse framework with Docker setup for automated backtesting
+- **Python Backtesting**: Backtrader framework for strategy backtesting
+- **Virtual Environment**: Isolated Python environment (`venv/`) for dependency management
 - **Documentation System**: Comprehensive guides for development workflows and standards
 - **Context Management**: Automated conversation management for efficient development sessions
 
@@ -31,8 +32,16 @@ This is a comprehensive trading algorithm development project featuring Pine Scr
   - `reversal/` - Reversal pattern strategies
 - `utils/` - Utility functions and helper scripts
 - `docs/` - Documentation and coding standards
-- `jesse-stack-docker/` - Docker setup for Jesse backtesting framework
 - `requirements.txt` - Python dependencies for backtesting frameworks
+
+#### Python Backtesting Components
+- `backtests/` - Backtrader backtesting framework
+  - `src/` - Source code files (backtest_engine.py, bt_configurable.py, bt_simple.py, etc.)
+  - `config/` - Configuration files for strategies and broker settings
+  - `data/` - Historical data files (CSV format)
+  - `README.md` - Complete usage guide with virtual environment instructions
+- `venv/` - Virtual environment for isolated Python development
+- `requirements.txt` - Python dependencies including backtrader, pandas, numpy
 
 #### Documentation & Templates
 - `docs/` - Comprehensive documentation
@@ -55,10 +64,16 @@ This is a comprehensive trading algorithm development project featuring Pine Scr
 - **File Organization**: Follow naming conventions in `docs/development-workflow.md`
 
 ### Python Backtesting (Active Implementation)
-- **Jesse Framework**: Docker-based setup in `jesse-stack-docker/` for automated backtesting
+- **Backtrader Framework**: Complete backtesting system in `backtests/` with multiple strategies and configuration options
+- **Virtual Environment**: Use `venv/` for isolated Python development with all dependencies installed
 - **Dependencies**: Complete Python environment defined in `requirements.txt`
 - **Strategy Conversion**: Pine Script logic can be adapted to Python/pandas paradigms for backtesting
-- **Live Trading**: Optional live trading module available via Jesse framework
+
+### Virtual Environment Usage
+- **Activation**: `D:\BIGBOSS\claudecode\venv\Scripts\activate` (Windows) or `source D:\BIGBOSS\claudecode/venv/bin/activate` (Linux/macOS)
+- **Running Backtests**: Use virtual environment Python interpreter for all backtesting scripts
+- **Dependency Management**: All required packages (backtrader, pandas, numpy) are pre-installed in the virtual environment
+- **Isolation**: Prevents conflicts with system Python packages and other projects
 
 ### Development Workflow
 - **Process**: Follow the complete development workflow in `docs/development-workflow.md`
@@ -86,6 +101,7 @@ This is a comprehensive trading algorithm development project featuring Pine Scr
 - **Command Line Operations**: Use `docs/development-workflow.md` for file operations
 - **Documentation Standards**: Follow documentation guidelines for all files
 - **Git Workflow**: Use proper commit standards and branch management
+- **Virtual Environment**: Always use `claudecode\venv` for Python development and backtesting
 
 ### Sub-Agent Access Pattern
 
@@ -162,15 +178,6 @@ The default input settings for `strategies/reversal/Doji_Ashi_Strategy 2.6.PINE`
 
 These changes establish a cleaner starting point for strategy analysis, focusing on the daily trend filter and the EMA-based entry trigger.
 
-### Jesse Backtesting Framework Integration
-
-Added complete Docker-based Jesse backtesting framework setup:
-
-- **Docker Environment**: Complete stack in `jesse-stack-docker/` with PostgreSQL database
-- **Quick Start**: Simple `docker-compose up` to start the backtesting environment
-- **Strategy Integration**: Ready for Pine Script strategy conversion and testing
-- **Live Trading**: Optional live trading module available via Jesse framework
-- **Web Interface**: Backtesting results available at `http://localhost:3000`
 
 ### Documentation System Overhaul
 
@@ -178,7 +185,7 @@ Updated and expanded documentation system:
 
 - **Main Index**: `docs/README.md` with comprehensive documentation navigation
 - **Development Workflow**: `docs/development-workflow.md` for command operations
-- **Python Frameworks**: `docs/python-frameworks-guide.md` for Jesse/VectorBT integration
+- **Python Frameworks**: `docs/python-frameworks-guide.md` for VectorBT integration
 - **Strategy Conversion**: `docs/strategy-conversion-guide.md` for Pine → Python conversion
 - **Context Management**: `docs/context-management-guide.md` for conversation optimization
 
@@ -189,5 +196,5 @@ Added complete `requirements.txt` with all necessary Python dependencies:
 - **Data Analysis**: pandas, numpy, pandas-ta
 - **Visualization**: matplotlib, seaborn, plotly
 - **Machine Learning**: scikit-learn, optional TensorFlow/PyTorch
-- **Backtesting**: Jesse, VectorBT (optional)
+- **Backtesting**: VectorBT (optional)
 - **Performance**: numba, scipy for optimization
