@@ -1,0 +1,117 @@
+// ⌘ SUMMARY:
+// Type: indicator
+// Purpose: Enhanced Squeeze Momentum with WaveTrend filter and backtest adapter
+// Key Inputs: SQZMOM parameters, WaveTrend settings, confirmation delay, trade direction
+// Outputs: Momentum histogram, WaveTrend lines, entry/exit signals, backtest stream
+// Functions: SQZMOM calculations, WaveTrend indicator, state management, backtest adapter
+// Logic: Combines SQZMOM with WaveTrend filter for better signal quality, includes state tracking for sophisticated exit logic, provides backtest adapter stream
+
+//@version=6
+indicator("SQZMOM_LB XZ 1.0 + WaveTrend Filter", overlay=false)
+
+// === SQZMOM 部分 ===
+length = input.int(20, title="BB Length")
+mult = input.float(2.0, title="BB MultFactor")
+lengthKC = input.int(20, title="KC Length")
+multKC = input.float(1.5, title="KC MultFactor")
+
+useTrueRange = input.bool(true, title="Use TrueRange (KC)")
+useConfirmedSignal = input.bool(false, title="Use Delayed Confirmed Signal", tooltip="Wait 1 bar to confirm signal (prevents repainting)")
+
+// === User Option: Trade Direction ===
+tradeDirection = input.string("Both", title="Trade Direction", options=["Long Only", "Short Only", "Both"])
+
+// Calculate BB
+source = close
+basis = ta.sma(source, length)
+dev = multKC * ta.stdev(source, length)
+upperBB = basis + dev
+lowerBB = basis - dev
+
+// Calculate KC
+ma = ta.sma(source, lengthKC)
+kcRange = useTrueRange ? ta.tr : (high - low)
+rangema = ta.sma(kcRange, lengthKC)
+upperKC = ma + rangema * multKC
+lowerKC = ma - rangema * multKC
+
+sqzOn  = (lowerBB > lowerKC) and (upperBB < upperKC)
+sqzOff = (lowerBB < lowerKC) and (upperBB > upperKC)
+noSqz  = (sqzOn == false) and (sqzOff == false)
+
+val = ta.linreg(source -  ((ta.highest(high, lengthKC) + ta.lowest(low, lengthKC)) / 2 + ta.sma(close, lengthKC)) / 2, lengthKC, 0)
+
+bcolor = val > 0 ? (val > nz(val[1]) ? color.lime : color.green) : (val < nz(val[1]) ? color.red : color.maroon)
+scolor = noSqz ? color.blue : sqzOn ? color.black : color.gray 
+
+plot(val, color=bcolor, style=plot.style_histogram, linewidth=4)
+plot(0, color=scolor, style=plot.style_cross, linewidth=2)
+
+// === WaveTrend 过滤器 ===
+n1 = input.int(10, "WT Channel Length")
+n2 = input.int(21, "WT Average Length")
+
+ap = hlc3 
+esa = ta.ema(ap, n1)
+d = ta.ema(math.abs(ap - esa), n1)
+ci = (ap - esa) / (0.015 * d)
+tci = ta.ema(ci, n2)
+
+wt1 = tci
+wt2 = ta.sma(wt1, 4)
+
+// === Entry Signal Detection ===
+blackCross_raw = sqzOn[1] and not sqzOn
+signalBar_raw = blackCross_raw and not noSqz
+
+// Confirmed signals (1 bar after trigger) optional
+blackCross = useConfirmedSignal ? blackCross_raw[1] : blackCross_raw
+signalBar = useConfirmedSignal ? signalBar_raw[1] : signalBar_raw
+
+longSignal = signalBar and val > 0 and wt1 > wt2
+shortSignal = signalBar and val < 0 and wt1 < wt2
+
+// === Filtered Entry Signals Based on Direction ===
+longSignalFiltered = (tradeDirection != "Short Only") and longSignal
+shortSignalFiltered = (tradeDirection != "Long Only") and shortSignal
+
+// === State Tracking ===
+var bool inLong = false
+var bool inShort = false
+var bool waitLongExitBySqueeze = false
+var bool waitShortExitBySqueeze = false
+
+var float longEntryPrice = na
+var float shortEntryPrice = na
+
+// === Exit Signal Flags ===
+exitLongWeak = inLong and not waitLongExitBySqueeze and bcolor == color.green and bcolor[1] == color.lime
+exitShortWeak = inShort and not waitShortExitBySqueeze and bcolor == color.maroon and bcolor[1] == color.red
+
+squeezeBackIn = sqzOn and not sqzOn[1]  // gray → black
+exitLongSqueeze = inLong and waitLongExitBySqueeze and squeezeBackIn
+exitShortSqueeze = inShort and waitShortExitBySqueeze and squeezeBackIn
+
+// === Entry and Exit Management ===
+waitLongExitBySqueeze := longSignalFiltered and bcolor == color.green ? true : exitLongSqueeze ? false : waitLongExitBySqueeze
+waitShortExitBySqueeze := shortSignalFiltered and bcolor == color.maroon ? true : exitShortSqueeze ? false : waitShortExitBySqueeze
+
+inLong := longSignalFiltered ? true : (exitLongWeak or exitLongSqueeze ? false : inLong)
+inShort := shortSignalFiltered ? true : (exitShortWeak or exitShortSqueeze ? false : inShort)
+
+longEntryPrice := longSignalFiltered ? close : (exitLongWeak or exitLongSqueeze ? na : longEntryPrice)
+shortEntryPrice := shortSignalFiltered ? close : (exitShortWeak or exitShortSqueeze ? na : shortEntryPrice)
+
+// === Plot signals ===
+plotshape(longSignalFiltered, title="Long Entry", location=location.bottom, color=color.green, style=shape.triangleup, size=size.small)
+plotshape(shortSignalFiltered, title="Short Entry", location=location.top, color=color.red, style=shape.triangledown, size=size.small)
+plotshape(exitLongWeak or exitLongSqueeze, title="Exit Long", location=location.bottom, color=color.gray, style=shape.xcross, size=size.tiny)
+plotshape(exitShortWeak or exitShortSqueeze, title="Exit Short", location=location.top, color=color.gray, style=shape.xcross, size=size.tiny)
+
+// === Filtered Backtesting Stream ===
+backTestStream = switch
+    longSignalFiltered => 1
+    exitLongWeak or exitLongSqueeze => 2
+    shortSignalFiltered => -1
+    exitShortWeak or exitShortSqueeze => -2
+plot(backTestStream, "Backtest Stream", display=display.none)
