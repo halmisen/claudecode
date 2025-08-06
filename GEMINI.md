@@ -215,3 +215,4 @@ Added complete `requirements.txt` with all necessary Python dependencies:
 - **Machine Learning**: scikit-learn, optional TensorFlow/PyTorch
 - **Backtesting**: VectorBT (optional)
 - **Performance**: numba, scipy for optimization
+
