@@ -1,0 +1,20 @@
+# Ignore Claude settings
+.claude/
+
+# Ignore Python wheel files
+*.whl
+
+# Ignore data download scripts
+download_binance_data.py
+
+# Ignore virtual environment
+claudecode/venv/
+
+# Ignore large data files
+claudecode/backtests/data/
+
+# Ignore IDE and system files
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
