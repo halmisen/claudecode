@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(copy:*)",
+      "Bash(cp:*)",
+      "Bash(rm -rf \"C:\\Users\\fiver\\Documents\\augment-projects\\KFC\\1.trend-buy\")",
+      "Bash(rm:*)",
+      "Bash(pip install:*)",
+      "Bash(python:*)",
+      "Bash(xcopy:*)",
+      "Bash(find:*)",
+      "Bash(ls -la)",
+      "Bash(py:*)",
+      "Bash(where:*)",
+      "WebFetch(domain:www.python.org)",
+      "Bash(powershell:*)",
+      "Bash(\"C:\\Users\\fiver\\Downloads\\python-3.11.9-amd64.exe\" /quiet InstallAllUsers=1 PrependPath=1 Include_test=0)",
+      "Bash(./jesse_env/Scripts/activate:*)",
+      "Bash(./jesse_env/Scripts/python -m pip install --upgrade pip)",
+      "Bash(./jesse_env/Scripts/python:*)",
+      "Bash(git reset:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git remote set-url:*)",
+      "Bash(mv:*)",
+      "Bash(ls:*)",
+      "Bash(dir docsarchive)",
+      "Bash(dir:*)",
+      "WebFetch(domain:docs.anthropic.com)"
+    ],
+    "deny": []
+  }
+}

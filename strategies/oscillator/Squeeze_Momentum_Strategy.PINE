@@ -1,0 +1,165 @@
+// ⌘ SUMMARY:
+// Type: strategy
+// Purpose: Squeeze Momentum trading strategy based on LazyBear's indicator
+// Key Inputs: BB/KC parameters, trade direction, stop loss options, Kelly display
+// Outputs: Entry signals on squeeze release, exit signals, Kelly statistics
+// Functions: BB/KC calculations, squeeze detection, momentum calculation
+// Logic: Enters on squeeze release with momentum confirmation, exits on momentum reversal or new squeeze, uses fixed percentage stop loss
+
+//@version=5
+// @author LazyBear 
+// 修改自: https://www.tradingview.com/v/4IneGo8h/
+//
+strategy(shorttitle="Squeeze Momentum 7.28", title="Squeeze Momentum 7.28", overlay=true, default_qty_type=strategy.percent_of_equity, default_qty_value=20, initial_capital=500, margin_long=25, margin_short=25, commission_type=strategy.commission.percent, commission_value=0.02)
+
+// === Inputs ===
+int int_bbLength = input.int(20, title="BB Length")
+float float_bbMult = input.float(2.0, title="BB Multiplier")
+int int_kcLength = input.int(20, title="KC Length")
+float float_kcMult = input.float(1.5, title="KC Multiplier")
+bool bool_useTrueRange = input.bool(true, title="Use True Range (KC)")
+string string_tradeDirection = input.string("Both", title="Trade Direction", options=["Long Only", "Short Only", "Both"])
+bool bool_useStopLoss = input.bool(false, title="Use Stop Loss")
+float float_stopLossPercent = input.float(2.0, title="Stop Loss Percent", step=0.1)
+bool bool_showKelly = input.bool(false, title="Show Kelly Criterion Stats")
+
+// === Calculations ===
+float float_source = close
+
+// Bollinger Bands
+float float_basis = ta.sma(float_source, int_bbLength)
+float float_dev = float_bbMult * ta.stdev(float_source, int_bbLength)
+float float_upperBB = float_basis + float_dev
+float float_lowerBB = float_basis - float_dev
+
+// Keltner Channel
+float float_ma = ta.sma(float_source, int_kcLength)
+float float_range = bool_useTrueRange ? ta.tr : (high - low)
+float float_rangema = ta.sma(float_range, int_kcLength)
+float float_upperKC = float_ma + float_rangema * float_kcMult
+float float_lowerKC = float_ma - float_rangema * float_kcMult
+
+// Squeeze State
+bool bool_sqzOn = (float_lowerBB > float_lowerKC) and (float_upperBB < float_upperKC)
+bool bool_sqzOff = (float_lowerBB < float_lowerKC) and (float_upperBB > float_upperKC)
+bool bool_noSqz = not bool_sqzOn and not bool_sqzOff
+
+// Momentum Value
+float float_val = ta.linreg(float_source - math.avg(math.avg(ta.highest(high, int_kcLength), ta.lowest(low, int_kcLength)), ta.sma(close, int_kcLength)), int_kcLength, 0)
+
+// Momentum and Squeeze Colors
+color color_bcolor = float_val > 0 ? (float_val > nz(float_val[1]) ? color.lime : color.green) : (float_val < nz(float_val[1]) ? color.red : color.maroon)
+color color_scolor = bool_noSqz ? color.blue : bool_sqzOn ? color.black : color.gray 
+
+// === Signal Conditions ===
+// Entry Signals
+bool bool_isGreenBar = float_val > 0
+bool bool_isRedBar = float_val < 0
+bool bool_wasInSqueeze = bool_sqzOn[1]
+bool bool_isSqueezeRelease = bool_sqzOff and not bool_sqzOn
+bool bool_longCondition = bool_wasInSqueeze and bool_isSqueezeRelease and bool_isGreenBar
+bool bool_shortCondition = bool_wasInSqueeze and bool_isSqueezeRelease and bool_isRedBar
+
+// Exit Signal - Exit when momentum reverses or a new squeeze begins.
+bool bool_momentumReversed = (strategy.position_size > 0 and float_val < 0) or (strategy.position_size < 0 and float_val > 0)
+bool bool_newSqueeze = bool_sqzOn and not bool_sqzOn[1]
+bool bool_exitCondition = bool_momentumReversed or bool_newSqueeze
+
+// === Trade Execution ===
+// Entry Logic
+if (bool_longCondition and (string_tradeDirection == "Long Only" or string_tradeDirection == "Both"))
+    strategy.entry("Long", strategy.long)
+
+if (bool_shortCondition and (string_tradeDirection == "Short Only" or string_tradeDirection == "Both"))
+    strategy.entry("Short", strategy.short)
+
+// Exit Logic
+if (bool_exitCondition)
+    strategy.close("Long", comment="Exit Long")
+    strategy.close("Short", comment="Exit Short")
+
+// Stop Loss Logic
+if (bool_useStopLoss)
+    if (strategy.position_size > 0)
+        strategy.exit("SL", "Long", stop=strategy.position_avg_price * (1 - float_stopLossPercent / 100))
+    if (strategy.position_size < 0)
+        strategy.exit("SL", "Short", stop=strategy.position_avg_price * (1 + float_stopLossPercent / 100))
+
+// === Visualization ===
+// The plot functions for the histogram are commented out because this is an overlay strategy.
+// Drawing them on the main chart would obscure the price action. They are kept for reference.
+// plot(float_val, color=color_bcolor, style=plot.style_histogram, linewidth=4, title="Momentum")
+// plot(0, color=color_scolor, style=plot.style_cross, linewidth=2, title="Squeeze State")
+
+// Plot trade signals on the chart
+plotshape(bool_longCondition, title="Long Signal", location=location.belowbar, color=color.lime, style=shape.triangleup, size=size.small)
+plotshape(bool_shortCondition, title="Short Signal", location=location.abovebar, color=color.red, style=shape.triangledown, size=size.small)
+plotshape(bool_exitCondition and (strategy.position_size != 0), title="Exit Signal", location=location.belowbar, color=color.gray, style=shape.circle, size=size.small)
+
+//––– Kelly Stats –––
+
+// Function to calculate the sample variance of a float array.
+// This function is now in the global scope to prevent syntax errors.
+arrayVariance(src) =>
+    float float_mean = array.avg(src)
+    float float_sumOfSquares = 0.0
+    for i = 0 to array.size(src) - 1
+        float_sumOfSquares += math.pow(array.get(src, i) - float_mean, 2)
+    int int_n = array.size(src)
+    float result = int_n > 1 ? float_sumOfSquares / (int_n - 1) : 0.0
+    result
+
+if bool_showKelly
+    // This code block calculates and displays Kelly criterion statistics. It runs only on the last bar to collect data from all closed trades.
+
+    // 1. Declare a global array to store the return of each trade.
+    var array<float> array_float_tradeReturns = array.new_float()
+
+    // 2. Main logic block, executed only on the last historical bar.
+    if barstate.islast
+        // Populate the array from all closed trades.
+        if strategy.closedtrades > 0 and array.size(array_float_tradeReturns) == 0
+            for i = 0 to strategy.closedtrades - 1
+                // Calculate the initial capital of the trade for v5.
+                float float_entryVal = strategy.closedtrades.entry_price(i) * math.abs(strategy.closedtrades.size(i))
+                // Avoid division by zero error if capital is not zero.
+                if float_entryVal != 0
+                    // Calculate the percentage return of this trade.
+                    float float_tradeReturn = (strategy.closedtrades.profit(i) / float_entryVal) * 100
+                    // Store the return in the global array.
+                    array.push(array_float_tradeReturns, float_tradeReturn)
+
+        // 3. If there is trade data, calculate Kelly criterion statistics.
+        float float_meanReturn = na
+        float float_varianceReturn = na
+        float float_kellyFraction = na
+
+        if array.size(array_float_tradeReturns) > 0
+            // Calculate the average return (average profit percentage per trade).
+            float_meanReturn := array.avg(array_float_tradeReturns)
+            // Calculate the variance of returns (sample variance) using the custom function.
+            float_varianceReturn := arrayVariance(array_float_tradeReturns)
+            // Calculate the Kelly fraction, handling the case where variance is zero.
+            if float_varianceReturn != 0
+                float_kellyFraction := float_meanReturn / float_varianceReturn
+
+        // 4. Display statistics in a table on the chart.
+        var table table_kellyStats = table.new(position.top_left, 2, 4, border_width = 1)
+        if barstate.islast
+            // Table header
+            table.cell(table_kellyStats, 0, 0, "Metric", bgcolor = color.new(color.blue, 75))
+            table.cell(table_kellyStats, 1, 0, "Value", bgcolor = color.new(color.blue, 75))
+            
+            // Average return
+            table.cell(table_kellyStats, 0, 1, "Mean Return (%)")
+            table.cell(table_kellyStats, 1, 1, str.tostring(float_meanReturn, "0.00"))
+            
+            // Return variance
+            table.cell(table_kellyStats, 0, 2, "Return Variance")
+            table.cell(table_kellyStats, 1, 2, str.tostring(float_varianceReturn, "0.00"))
+
+            // Kelly fraction
+            table.cell(table_kellyStats, 0, 3, "Kelly Fraction")
+            table.cell(table_kellyStats, 1, 3, str.tostring(float_kellyFraction, "0.00"))
+
+//EOF
