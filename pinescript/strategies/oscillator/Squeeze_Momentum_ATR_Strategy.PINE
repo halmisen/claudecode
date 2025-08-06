@@ -1,0 +1,200 @@
+// ⌘ SUMMARY:
+// Type: strategy
+// Purpose: Enhanced Squeeze Momentum strategy with ATR trailing stop
+// Key Inputs: BB/KC parameters, ATR trailing stop settings, trade direction
+// Outputs: Entry signals, trailing stop lines, exit signals, Kelly stats
+// Functions: BB/KC calculations, ATR trailing stop logic, Kelly criterion analysis
+// Logic: Same entry logic as v1 but uses ATR trailing stop instead of fixed stop loss, allows profits to run while managing risk
+
+//@version=5
+// @author LazyBear 
+// 修改自: https://www.tradingview.com/v/4IneGo8h/
+// v2 ATR by Gemini: Implemented ATR Trailing Stop for exit logic to let profits run and manage risk.
+//
+strategy(shorttitle="Squeeze Momentum v2 ATR", title="Squeeze Momentum v2 (ATR Trailing Stop)", overlay=true, default_qty_type=strategy.percent_of_equity, default_qty_value=20, initial_capital=500, margin_long=25, margin_short=25, commission_type=strategy.commission.percent, commission_value=0.02)
+
+// === Inputs ===
+// --- Strategy Parameters ---
+int int_bbLength = input.int(20, title="BB Length", group="Strategy Parameters")
+float float_bbMult = input.float(2.0, title="BB Multiplier", group="Strategy Parameters")
+int int_kcLength = input.int(20, title="KC Length", group="Strategy Parameters")
+float float_kcMult = input.float(1.5, title="KC Multiplier", group="Strategy Parameters")
+bool bool_useTrueRange = input.bool(true, title="Use True Range (KC)", group="Strategy Parameters")
+string string_tradeDirection = input.string("Both", title="Trade Direction", options=["Long Only", "Short Only", "Both"], group="Strategy Parameters")
+
+// --- Exit Logic ---
+bool bool_useAtrTrailingStop = input.bool(true, title="Use ATR Trailing Stop", group="Exit Logic")
+int int_atrLength = input.int(14, title="ATR Length", group="Exit Logic", tooltip="ATR period for the trailing stop.")
+float float_atrMultiplier = input.float(2.5, title="ATR Multiplier", group="Exit Logic", tooltip="Multiplier for the ATR trailing stop distance.")
+
+bool bool_useFixedStopLoss = input.bool(false, title="Use Fixed Percent Stop Loss", group="Exit Logic", tooltip="This is ignored if ATR Trailing Stop is enabled.")
+float float_stopLossPercent = input.float(2.0, title="Stop Loss Percent", step=0.1, group="Exit Logic")
+
+// --- Misc ---
+bool bool_showKelly = input.bool(false, title="Show Kelly Criterion Stats", group="Misc")
+
+// === Calculations ===
+float float_source = close
+
+// Bollinger Bands
+float float_basis = ta.sma(float_source, int_bbLength)
+float float_dev = float_bbMult * ta.stdev(float_source, int_bbLength)
+float float_upperBB = float_basis + float_dev
+float float_lowerBB = float_basis - float_dev
+
+// Keltner Channel
+float float_ma = ta.sma(float_source, int_kcLength)
+float float_range = bool_useTrueRange ? ta.tr : (high - low)
+float float_rangema = ta.sma(float_range, int_kcLength)
+float float_upperKC = float_ma + float_rangema * float_kcMult
+float float_lowerKC = float_ma - float_rangema * float_kcMult
+
+// Squeeze State
+bool bool_sqzOn = (float_lowerBB > float_lowerKC) and (float_upperBB < float_upperKC)
+bool bool_sqzOff = (float_lowerBB < float_lowerKC) and (float_upperBB > float_upperKC)
+bool bool_noSqz = not bool_sqzOn and not bool_sqzOff
+
+// Momentum Value
+float float_val = ta.linreg(float_source - math.avg(math.avg(ta.highest(high, int_kcLength), ta.lowest(low, int_kcLength)), ta.sma(close, int_kcLength)), int_kcLength, 0)
+
+// Momentum and Squeeze Colors
+color color_bcolor = float_val > 0 ? (float_val > nz(float_val[1]) ? color.lime : color.green) : (float_val < nz(float_val[1]) ? color.red : color.maroon)
+color color_scolor = bool_noSqz ? color.blue : bool_sqzOn ? color.black : color.gray 
+
+// === Signal Conditions ===
+// Entry Signals
+bool bool_isGreenBar = float_val > 0
+bool bool_isRedBar = float_val < 0
+bool bool_wasInSqueeze = bool_sqzOn[1]
+bool bool_isSqueezeRelease = bool_sqzOff and not bool_sqzOn
+bool bool_longCondition = bool_wasInSqueeze and bool_isSqueezeRelease and bool_isGreenBar
+bool bool_shortCondition = bool_wasInSqueeze and bool_isSqueezeRelease and bool_isRedBar
+
+// --- ATR Trailing Stop Calculation ---
+float float_atr = ta.atr(int_atrLength)
+
+var float float_trailingStopPriceLong = na
+if (strategy.position_size > 0)
+    float float_stopValue = close - float_atr * float_atrMultiplier
+    if (strategy.position_size[1] == 0) // New trade
+        float_trailingStopPriceLong := float_stopValue
+    else // Active trade, trail the stop
+        float_trailingStopPriceLong := math.max(float_stopValue, nz(float_trailingStopPriceLong[1]))
+else
+    float_trailingStopPriceLong := na
+
+var float float_trailingStopPriceShort = na
+if (strategy.position_size < 0)
+    float float_stopValue = close + float_atr * float_atrMultiplier
+    if (strategy.position_size[1] == 0) // New trade
+        float_trailingStopPriceShort := float_stopValue
+    else // Active trade, trail the stop
+        float_trailingStopPriceShort := math.min(float_stopValue, nz(float_trailingStopPriceShort[1], float_stopValue))
+else
+    float_trailingStopPriceShort := na
+
+// === Trade Execution ===
+// Entry Logic
+if (bool_longCondition and (string_tradeDirection == "Long Only" or string_tradeDirection == "Both"))
+    strategy.entry("Long", strategy.long)
+
+if (bool_shortCondition and (string_tradeDirection == "Short Only" or string_tradeDirection == "Both"))
+    strategy.entry("Short", strategy.short)
+
+// Exit Logic
+// Exit Condition 1: A new squeeze begins
+bool bool_newSqueeze = bool_sqzOn and not bool_sqzOn[1]
+if (bool_newSqueeze)
+    strategy.close_all(comment="Exit: New Squeeze")
+
+// Exit Condition 2: Stop Loss (ATR Trailing or Fixed)
+if (bool_useAtrTrailingStop)
+    if strategy.position_size > 0
+        strategy.exit("Long TSL", from_entry="Long", stop=float_trailingStopPriceLong)
+    if strategy.position_size < 0
+        strategy.exit("Short TSL", from_entry="Short", stop=float_trailingStopPriceShort)
+else if (bool_useFixedStopLoss)
+    if (strategy.position_size > 0)
+        strategy.exit("SL", "Long", stop=strategy.position_avg_price * (1 - float_stopLossPercent / 100))
+    if (strategy.position_size < 0)
+        strategy.exit("SL", "Short", stop=strategy.position_avg_price * (1 + float_stopLossPercent / 100))
+
+
+// === Visualization ===
+// Plot trade signals on the chart
+plotshape(bool_longCondition, title="Long Signal", location=location.belowbar, color=color.lime, style=shape.triangleup, size=size.small)
+plotshape(bool_shortCondition, title="Short Signal", location=location.abovebar, color=color.red, style=shape.triangledown, size=size.small)
+
+// Plot Trailing Stop Line
+plot(float_trailingStopPriceLong, color=color.new(color.red, 0), style=plot.style_linebr, title="Trailing Stop Long", linewidth=2)
+plot(float_trailingStopPriceShort, color=color.new(color.red, 0), style=plot.style_linebr, title="Trailing Stop Short", linewidth=2)
+
+// The original exit signal plot is removed as the logic is now split into TSL and New Squeeze exits.
+
+//––– Kelly Stats –––
+
+// Function to calculate the sample variance of a float array.
+// This function is now in the global scope to prevent syntax errors.
+arrayVariance(src) =>
+    float float_mean = array.avg(src)
+    float float_sumOfSquares = 0.0
+    for i = 0 to array.size(src) - 1
+        float_sumOfSquares += math.pow(array.get(src, i) - float_mean, 2)
+    int int_n = array.size(src)
+    float result = int_n > 1 ? float_sumOfSquares / (int_n - 1) : 0.0
+    result
+
+if bool_showKelly
+    // This code block calculates and displays Kelly criterion statistics. It runs only on the last bar to collect data from all closed trades.
+
+    // 1. Declare a global array to store the return of each trade.
+    var array<float> array_float_tradeReturns = array.new_float()
+
+    // 2. Main logic block, executed only on the last historical bar.
+    if barstate.islast
+        // Populate the array from all closed trades.
+        if strategy.closedtrades > 0 and array.size(array_float_tradeReturns) == 0
+            for i = 0 to strategy.closedtrades - 1
+                // Calculate the initial capital of the trade for v5.
+                float float_entryVal = strategy.closedtrades.entry_price(i) * math.abs(strategy.closedtrades.size(i))
+                // Avoid division by zero error if capital is not zero.
+                if float_entryVal != 0
+                    // Calculate the percentage return of this trade.
+                    float float_tradeReturn = (strategy.closedtrades.profit(i) / float_entryVal) * 100
+                    // Store the return in the global array.
+                    array.push(array_float_tradeReturns, float_tradeReturn)
+
+        // 3. If there is trade data, calculate Kelly criterion statistics.
+        float float_meanReturn = na
+        float float_varianceReturn = na
+        float float_kellyFraction = na
+
+        if array.size(array_float_tradeReturns) > 0
+            // Calculate the average return (average profit percentage per trade).
+            float_meanReturn := array.avg(array_float_tradeReturns)
+            // Calculate the variance of returns (sample variance) using the custom function.
+            float_varianceReturn := arrayVariance(array_float_tradeReturns)
+            // Calculate the Kelly fraction, handling the case where variance is zero.
+            if float_varianceReturn != 0
+                float_kellyFraction := float_meanReturn / float_varianceReturn
+
+        // 4. Display statistics in a table on the chart.
+        var table table_kellyStats = table.new(position.top_left, 2, 4, border_width = 1)
+        if barstate.islast
+            // Table header
+            table.cell(table_kellyStats, 0, 0, "Metric", bgcolor = color.new(color.blue, 75))
+            table.cell(table_kellyStats, 1, 0, "Value", bgcolor = color.new(color.blue, 75))
+            
+            // Average return
+            table.cell(table_kellyStats, 0, 1, "Mean Return (%)")
+            table.cell(table_kellyStats, 1, 1, str.tostring(float_meanReturn, "0.00"))
+            
+            // Return variance
+            table.cell(table_kellyStats, 0, 2, "Return Variance")
+            table.cell(table_kellyStats, 1, 2, str.tostring(float_varianceReturn, "0.00"))
+
+            // Kelly fraction
+            table.cell(table_kellyStats, 0, 3, "Kelly Fraction")
+            table.cell(table_kellyStats, 1, 3, str.tostring(float_kellyFraction, "0.00"))
+
+//EOF

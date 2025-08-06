@@ -1,0 +1,149 @@
+// ⌘ SUMMARY:
+// Type: indicator
+// Purpose: GRaB (Green Red Blue) trend following system with EMA filters
+// Key Inputs: EMA length, volume settings, trade mode, ROI display, risk-reward settings
+// Outputs: GRaB colored candles, EMAs, volume dots, entry/exit signals, ROI labels
+// Functions: ta.ema(), volume analysis, trend detection, risk-reward calculations
+// Logic: Colors candles based on position relative to EMAs, generates signals on breakouts with volume confirmation and trend filters
+
+//@version=6
+indicator("ST_GRaB XZ 3.1", overlay=true)
+
+// === 参数设置 ===
+length = input.int(34, title="EMA Length")
+volAvgLen = input.int(20, title="VolumeAveragingLength")
+volThreshold = input.int(50, title="VolumePercentThreshold (%)")
+showVolDots = input.bool(false, title="Show VolumeStrength Dots")
+tradeMode = input.string("Both", title="交易方向模式", options=["Both", "Long Only", "Short Only"])
+showROI = input.bool(true, title="显示每笔交易ROI标签")
+useRiskReward = input.bool(true, title="启用固定盈亏比止盈")
+riskRewardRatio = input.float(1.5, title="盈亏比（如1:1.5）", step=0.1)
+
+// === 显示控制 ===
+mainEMAView = input.string("Last 30 Bars", title="GRaB主通道EMA显示范围", options=["Last 30 Bars", "Before Last 30 Bars", "All"])
+filterEMAView = input.string("Last 30 Bars", title="趋势过滤EMA显示范围", options=["Last 30 Bars", "Before Last 30 Bars", "All"])
+showMainEMA = input.bool(true, title="显示GRaB主通道EMA(High/Close/Low)")
+showFilterEMA = input.bool(true, title="显示趋势过滤用EMA(21/55/100/200)")
+
+// === 显示逻辑函数 ===
+showByViewMode(viewMode) =>
+    viewMode == "All" or (viewMode == "Last 30 Bars" and bar_index > last_bar_index - 30) or (viewMode == "Before Last 30 Bars" and bar_index <= last_bar_index - 30)
+
+// === EMA 设置 ===
+emaHigh = ta.ema(high, length)
+emaLow = ta.ema(low, length)
+emaClose = ta.ema(close, length)
+ema21 = ta.ema(close, 21)
+ema55 = ta.ema(close, 55)
+ema100 = ta.ema(close, 100)
+ema200 = ta.ema(close, 200)
+
+showFilterLine = showFilterEMA and showByViewMode(filterEMAView)
+
+plot(showMainEMA and showByViewMode(mainEMAView) ? emaHigh : na, color=color.lime, linewidth=2, title="EMA of the high")
+plot(showMainEMA and showByViewMode(mainEMAView) ? emaClose : na, color=color.blue, linewidth=2, title="EMA of the close")
+plot(showMainEMA and showByViewMode(mainEMAView) ? emaLow : na, color=color.red, linewidth=2, title="EMA of the low")
+
+plot(showFilterLine ? ema21 : na, color=color.lime, title="EMA21", linewidth=1)
+plot(showFilterLine ? ema55 : na, color=color.gray, title="EMA55", linewidth=1)
+plot(showFilterLine ? ema100 : na, color=color.gray, title="EMA100", linewidth=1)
+plot(showFilterLine ? ema200 : na, color=color.black, title="EMA200", linewidth=1)
+
+if barstate.islast and showFilterEMA and filterEMAView != "Before Last 30 Bars"
+    label.new(bar_index + 8, ema21, text="EMA21:  " + str.tostring(ema21, "#.##"), color=na, textcolor=color.lime, style=label.style_label_right, size=size.small)
+    label.new(bar_index + 8, ema55, text="EMA55:  " + str.tostring(ema55, "#.##"), color=na, textcolor=color.gray, style=label.style_label_right, size=size.small)
+    label.new(bar_index + 8, ema100, text="EMA100: " + str.tostring(ema100, "#.##"), color=na, textcolor=color.gray, style=label.style_label_right, size=size.small)
+    label.new(bar_index + 8, ema200, text="EMA200: " + str.tostring(ema200, "#.##"), color=na, textcolor=color.black, style=label.style_label_right, size=size.small)
+
+// === GRaB颜色逻辑 ===
+isBull = close > open
+isBear = close < open
+
+color barColor = na
+barColor := close > emaHigh ? (isBull ? color.lime : color.green) : barColor
+barColor := close < emaLow  ? (isBear ? color.maroon : color.red) : barColor
+barColor := (close <= emaHigh and close >= emaLow) ? (isBear ? color.navy : color.blue) : barColor
+
+barcolor(barColor, title="GRaB Bar Color")
+
+// === 成交量强度点绘制 ===
+avgVolume = ta.sma(volume, volAvgLen)
+volStrength = volume > avgVolume * (1 + volThreshold / 100)
+plotshape(showVolDots and volStrength, title="VolumeStrength", location=location.abovebar, color=color.aqua, style=shape.circle, size=size.tiny)
+
+// === 告警 ===
+greenCandle = close > emaHigh
+redCandle   = close < emaLow
+blueCandle  = not greenCandle and not redCandle
+
+alertcondition(greenCandle, title="First Green Candle", message="GRaB: First Green Candle")
+alertcondition(redCandle, title="First Red Candle", message="GRaB: First Red Candle")
+alertcondition(blueCandle, title="First Blue Candle", message="GRaB: First Blue Candle")
+
+// === 交易逻辑 ===
+var bool inLong = false
+var bool inShort = false
+var float entryPrice = na
+var float stopLoss = na
+var float takeProfit = na
+var float longEntryPrice_forROI = na
+var float shortEntryPrice_forROI = na
+
+validBreakout = high > emaHigh and low > emaLow
+validBreakdown = low < emaLow and high < emaHigh
+longTrendOK = ema21 > ema55
+shortTrendOK = ema21 < ema55 and ema55 < ema100
+
+longAllowed = tradeMode == "Both" or tradeMode == "Long Only"
+shortAllowed = tradeMode == "Both" or tradeMode == "Short Only"
+
+longEntry = not inLong and longAllowed and close > emaHigh and validBreakout and longTrendOK
+shortEntry = not inShort and shortAllowed and close < emaLow and validBreakdown and shortTrendOK
+
+if longEntry
+    entryPrice := close
+    longEntryPrice_forROI := close
+    stopLoss := ema21
+    inLong := true
+    takeProfit := useRiskReward ? entryPrice + (entryPrice - stopLoss) * riskRewardRatio : na
+
+if shortEntry
+    entryPrice := close
+    shortEntryPrice_forROI := close
+    stopLoss := ema21
+    inShort := true
+    takeProfit := useRiskReward ? entryPrice - (stopLoss - entryPrice) * riskRewardRatio : na
+
+longExit = inLong and ((useRiskReward and not na(takeProfit) and close >= takeProfit) or (close < ema21))
+shortExit = inShort and ((useRiskReward and not na(takeProfit) and close <= takeProfit) or (close > ema21))
+
+inLong := longEntry ? true : longExit ? false : inLong
+inShort := shortEntry ? true : shortExit ? false : inShort
+
+// === 信号绘图 ===
+plotshape(longEntry, title="Long Entry", location=location.belowbar, color=color.lime, style=shape.triangleup, size=size.small)
+plotshape(longExit, title="Long Exit", location=location.abovebar, color=color.green, style=shape.xcross, size=size.tiny)
+plotshape(shortEntry, title="Short Entry", location=location.abovebar, color=color.red, style=shape.triangledown, size=size.small)
+plotshape(shortExit, title="Short Exit", location=location.belowbar, color=color.maroon, style=shape.xcross, size=size.tiny)
+
+// === ROI 标签 ===
+if (longExit and not na(longEntryPrice_forROI) and showROI)
+    roi = (close - longEntryPrice_forROI) / longEntryPrice_forROI * 100
+    label.new(bar_index, high, text=str.tostring(roi >= 0 ? "+" : "") + str.tostring(roi, "#.##") + "%", style=label.style_label_down, color=color.green, textcolor=color.white)
+    longEntryPrice_forROI := na
+
+if (shortExit and not na(shortEntryPrice_forROI) and showROI)
+    roi = (shortEntryPrice_forROI - close) / shortEntryPrice_forROI * 100
+    label.new(bar_index, low, text=str.tostring(roi >= 0 ? "+" : "") + str.tostring(roi, "#.##") + "%", style=label.style_label_up, color=color.red, textcolor=color.white)
+    shortEntryPrice_forROI := na
+
+// === 回测信号 ===
+int adapterSignal = 0
+if tradeMode == "Long Only"
+    adapterSignal := longEntry ? 1 : longExit ? 2 : 0
+else if tradeMode == "Short Only"
+    adapterSignal := shortEntry ? -1 : shortExit ? -2 : 0
+else
+    adapterSignal := longEntry ? 1 : longExit ? 2 : shortEntry ? -1 : shortExit ? -2 : 0
+
+plot(adapterSignal, title="回测信号", display=display.none)

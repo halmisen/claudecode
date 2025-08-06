@@ -1,20 +1,72 @@
-# Ignore Claude settings
-.claude/
+# Combined .gitignore managed by Gemini
 
-# Ignore Python wheel files
-*.whl
-
-# Ignore data download scripts
-download_binance_data.py
-
-# Ignore virtual environment
-claudecode/venv/
-
-# Ignore large data files
-claudecode/backtests/data/
-
-# Ignore IDE and system files
-.vscode/
-.idea/
+# --- System / IDE / Env ---
+.tmp.driveupload/
+.env
 Thumbs.db
 .DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.claude/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.whl
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# --- Virtual Environments ---
+# General patterns for virtual envs
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+# Specific project path
+claudecode/venv/
+
+# --- Project Data & Logs ---
+# Logs
+*.log
+logs/
+
+# Backtest results and data
+claudecode/backtests/data/
+claudecode/backtests/results/
+results/
+
+# Temporary data folders
+tmp/
+temp/
+*.tmp
+*.temp
+temp_data/
+
+# --- Scripts ---
+# Ignore data download scripts
+download_binance_data.py
+claudecode/download_data.py
+
+# --- PineScript ---
+*.compiled
