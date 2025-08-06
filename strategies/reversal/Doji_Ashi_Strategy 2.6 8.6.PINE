@@ -7,11 +7,11 @@
 // Based on: indicators/oscillator/DOJI V2.6.PINE
 
 //@version=5
-strategy(title="Doji Ashi v2.6 Strategy 8.1", overlay=true, initial_capital=500, default_qty_type=strategy.percent_of_equity, default_qty_value=20, margin_long=25, margin_short=25, commission_type=strategy.commission.percent, commission_value=0.02)
+strategy(title="Doji Ashi v2.6 Strategy 8.6", overlay=true, initial_capital=500, default_qty_type=strategy.percent_of_equity, default_qty_value=20, margin_long=25, margin_short=25, commission_type=strategy.commission.percent, commission_value=0.02)
 
 // === MODE SELECTOR === //
-market_type = input.string("Stocks", options=["Stocks", "Crypto"], title="Market Type Preset", tooltip="Choose 'Stocks' to enable filters relevant to equities (e.g. SPY comparison). Choose 'Crypto' to enable BTC market filter and crypto-optimized defaults.")
-trade_direction = input.string("Both", options=["Long", "Short", "Both"], title="Trade Direction", tooltip="Choose 'Long' for long trades only, 'Short' for short trades only, or 'Both' for both directions.")
+market_type = input.string("Crypto", options=["Stocks", "Crypto"], title="Market Type Preset", tooltip="Choose 'Stocks' to enable filters relevant to equities (e.g. SPY comparison). Choose 'Crypto' to enable BTC market filter and crypto-optimized defaults.")
+trade_direction = input.string("Long", options=["Long", "Short", "Both"], title="Trade Direction", tooltip="Choose 'Long' for long trades only, 'Short' for short trades only, or 'Both' for both directions.")
 
 // === INPUT SETTINGS === //
 // Raw inputs with constant defaults
@@ -28,7 +28,7 @@ enable_vwap_filter_entry_input = input.bool(false, "Use VWAP for Entry Filter", 
 enable_entry_trigger = input.bool(true, "Use Entry Trigger", tooltip="Requires a momentum trigger using 3/8 MA crossover logic to enter trades.")
 trigger_ma_type = input.string("EMA", options=["EMA", "ZLEMA", "HULL"], title="Trigger MA Type", tooltip="Determines the type of moving average used for the 3/8 crossover trigger: EMA, Zero-Lag EMA, or HULL MA.")
 entry_mode = input.string("Above/Below", options=["Cross", "Above/Below"], title="3/8 MA Entry Mode", tooltip="'Cross' triggers signals on 3/8 MA crossover. 'Above/Below' keeps signals active while the fast MA remains above/below the slow MA.")
-cooldown_bars = input.int(10, "Cooldown Bars Between Signals", minval=1, tooltip="Number of bars to wait after a signal before allowing another signal in the same direction. Helps prevent overtrading.")
+cooldown_bars = input.int(5, "Cooldown Bars Between Signals", minval=1, tooltip="Number of bars to wait after a signal before allowing another signal in the same direction. Helps prevent overtrading.")
 show_market_strength = input.bool(false, "Show Market Filter Strength", tooltip="Display background color indicating market filter strength (SPY/BTC distance from SMA).")
 
 // === SL/TP SETTINGS === //
