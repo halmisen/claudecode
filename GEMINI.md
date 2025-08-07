@@ -171,9 +171,9 @@ Claude Code includes automated context management through the context management
 
 ## Recent Changes
 
-### `Doji_Ashi_Strategy 2.6.PINE` Default Settings Update
+### `Doji_Ashi_Strategy v2.6.pine` Default Settings Update
 
-The default input settings for `strategies/reversal/Doji_Ashi_Strategy 2.6.PINE` have been updated to streamline testing and provide a more focused baseline configuration.
+The default input settings for `strategies/reversal/Doji_Ashi_Strategy_v2.6.pine` have been updated to streamline testing and provide a more focused baseline configuration.
 
 **Summary of Changes:**
 

@@ -74,5 +74,6 @@ temp/
 
 # Temp data
 temp_data/
+backtester/requirements.txt
 
  
