@@ -10,6 +10,7 @@ This is a comprehensive trading algorithm development project featuring Pine Scr
 
 - **Pine Script Development**: Complete library of technical indicators and strategies for TradingView
 - **Python Backtesting**: Backtrader framework for strategy backtesting
+- **Interactive Visualization**: A new Plotly-based module (`viz/plotly_bt.py`) for creating interactive charts from CSV data, with an example script in `examples/`.
 - **Virtual Environment**: Isolated Python environment (`venv/`) for dependency management
 - **Documentation System**: Comprehensive guides for development workflows and standards
 - **Context Management**: Automated conversation management for efficient development sessions
@@ -42,6 +43,12 @@ This is a comprehensive trading algorithm development project featuring Pine Scr
   - `README.md` - Complete usage guide with virtual environment instructions
 - `venv/` - Virtual environment for isolated Python development
 - `requirements.txt` - Python dependencies including backtrader, pandas, numpy
+- `requirements-local.txt` - For local-only dependencies (e.g., custom TA-Lib builds).
+
+#### Visualization & Examples
+- `viz/` - Visualization modules, including `plotly_bt.py`.
+- `examples/` - Example scripts like `run_csv_and_plot.py`.
+- `reports/` - Default output directory for plots.
 
 #### Documentation & Templates
 - `docs/` - Comprehensive documentation
@@ -64,6 +71,87 @@ This is a comprehensive trading algorithm development project featuring Pine Scr
 - **File Organization**: Follow naming conventions in `docs/development-workflow.md`
 
 ### Python Backtesting (Active Implementation)
+
+- **Standard Imports (VENV-aware rule)**: All Python strategy files (`backtester/backtests/strategies/*.py`) must begin with the following import template. Core imports reflect the current virtual environment. Optional packages are guarded with try/except to avoid runtime failures if not present.
+
+  ```python
+  # --- Standard Library ---
+  import datetime
+  from typing import Optional
+
+  # --- Core Scientific ---
+  import numpy as np
+  import pandas as pd
+
+  # Optional scientific (guarded)
+  try:
+      from scipy import stats  # noqa: F401
+  except Exception:
+      stats = None
+
+  # --- Backtesting ---
+  import backtrader as bt
+
+  # TA-Lib (installed in venv) and Backtrader-TALIB bridge
+  try:
+      import talib  # noqa: F401
+      HAS_TALIB = True
+  except Exception:
+      talib = None
+      HAS_TALIB = False
+
+  # pandas_ta: optional
+  try:
+      import pandas_ta as ta  # noqa: F401
+      HAS_PANDAS_TA = True
+  except Exception:
+      ta = None
+      HAS_PANDAS_TA = False
+
+  # --- Data & HTTP ---
+  import requests  # installed in venv
+  try:
+      import yfinance as yf  # noqa: F401
+      HAS_YFINANCE = True
+  except Exception:
+      yf = None
+      HAS_YFINANCE = False
+
+  # --- Visualization ---
+  import matplotlib.pyplot as plt
+  try:
+      import seaborn as sns  # noqa: F401
+      HAS_SEABORN = True
+  except Exception:
+      sns = None
+      HAS_SEABORN = False
+  try:
+      import plotly.graph_objects as go  # noqa: F401
+      HAS_PLOTLY = True
+  except Exception:
+      go = None
+      HAS_PLOTLY = False
+
+  # --- Performance & Utilities (optional) ---
+  try:
+      from numba import jit  # noqa: F401
+      HAS_NUMBA = True
+  except Exception:
+      jit = None
+      HAS_NUMBA = False
+  try:
+      from loguru import logger  # noqa: F401
+      HAS_LOGURU = True
+  except Exception:
+      logger = None
+      HAS_LOGURU = False
+  ```
+
+- **Usage Guidance**:
+  - Prefer TA-Lib indicators when `HAS_TALIB` is True; otherwise gracefully fallback to Backtrader indicators.
+  - Keep optional dependencies behind capability flags (e.g., `HAS_PANDAS_TA`, `HAS_YFINANCE`).
+  - Do not hard-crash on missing optional libs; degrade features instead.
+
 - **Backtrader Framework**: Complete backtesting system in `backtests/` with multiple strategies and configuration options
 - **Virtual Environment**: Use `venv/` for isolated Python development with all dependencies installed
 - **Dependencies**: Complete Python environment defined in `requirements.txt`
@@ -154,47 +242,23 @@ Claude Code includes automated context management through the context management
 
 ## Recent Changes
 
-### `Doji_Ashi_Strategy v2.6.pine` Default Settings Update
+### Backtesting Setup and Data Preprocessing Enhancements
 
-The default input settings for `strategies/reversal/Doji_Ashi_Strategy_v2.6.pine` have been updated to streamline testing and provide a more focused baseline configuration.
+This update details the improvements made to the backtesting setup, focusing on data handling, dependency compatibility, and plotting.
 
-**Summary of Changes:**
+*   **Automated Bokeh Plotting**:
+    *   Modified `backtester/backtests/strategies/dojo1_v2.py` to automatically use `Bokeh` for plotting when `cerebro.plot()` is called without an explicit `plotter` argument.
+*   **Dual Data Feed Support**:
+    *   Enhanced `backtester/backtests/strategies/dojo1_v2.py` to accept two distinct data feeds (`--main_data` for primary OHLCV and `--daily_data` for daily trend filtering) via command-line arguments.
+*   **Dependency Compatibility Fixes**:
+    *   **`numpy` and `bokeh`**: Resolved `AttributeError: module 'numpy' has no attribute 'bool8'` and `AttributeError: module 'numpy' has no attribute 'object'` by:
+        *   Downgrading `numpy` to `1.26.4` in `requirements.txt`.
+        *   Temporarily patching `backtester/venv/Lib/site-packages/backtrader_plotting/bokeh/figure.py` to replace `np.object` with `object` (Note: This is a temporary fix and will be overwritten upon reinstallation of `backtrader_plotting`).
+    *   **`backtrader_plotting` Module**: Added `backtrader_plotting==2.0.0` to `requirements.txt` to ensure its proper installation.
+*   **Robust Timestamp Handling (Data Preprocessing)**:
+    *   Addressed `ValueError: time data '...' does not match format '%Y-%m-%d %H:%M:%S'` by:
+        *   Creating `preprocess_data.py` to convert毫秒级 Unix 时间戳 to `YYYY-MM-DD HH:MM:SS` format.
+        *   Integrated `preprocess_data.py` into `dojo1_v2.py` to automatically preprocess data files before loading them into `backtrader`. This ensures consistent date/time formatting.
+    *   Modified `preprocess_data.py` to use `errors='coerce'` during `pd.to_datetime` conversion to handle any invalid timestamps gracefully.
 
-*   **General Filters:** Most boolean (true/false) filters have been disabled by default to allow for more targeted analysis.
-    *   `Use Market Trend Filter (SPY/BTC)`: `false`
-    *   `Use Relative Strength Filter`: `false`
-    *   `Use Relative Volume Filter`: `false`
-    *   `Use Trailing Stop`: `false`
-    *   `Use Time-based Exit`: `false`
-    *   All visualization options (`Show SL/TP Levels`, `Show VWAP Line`, etc.): `false`
-*   **Core Logic Enabled:**
-    *   `Use Daily Trend Filter (Above SMAs)`: Remains `true` as a core component of the strategy's logic.
-    *   `Use Entry Trigger`: Set to `true` to enforce the 3/8 MA entry condition.
-*   **Configuration Presets:**
-    *   `Market Type Preset`: Defaulted to `"crypto"`.
-    *   `Trade Direction`: Defaulted to `"long"`.
-    *   `Trigger MA Type`: Defaulted to `"EMA"`.
-    *   `3/8 MA Entry Mode`: Defaulted to `"Above/Below"`.
-
-These changes establish a cleaner starting point for strategy analysis, focusing on the daily trend filter and the EMA-based entry trigger.
-
-
-### Documentation System Overhaul
-
-Updated and expanded documentation system:
-
-- **Main Index**: `docs/README.md` with comprehensive documentation navigation
-- **Development Workflow**: `docs/development-workflow.md` for command operations
-- **Python Frameworks**: `docs/python-frameworks-guide.md` for VectorBT integration
-- **Strategy Conversion**: `docs/strategy-conversion-guide.md` for Pine → Python conversion
-- **Context Management**: `docs/context-management-guide.md` for conversation optimization
-
-### Requirements Management
-
-Added complete `requirements.txt` with all necessary Python dependencies:
-
-- **Data Analysis**: pandas, numpy, pandas-ta
-- **Visualization**: matplotlib, seaborn, plotly
-- **Machine Learning**: scikit-learn, optional TensorFlow/PyTorch
-- **Backtesting**: VectorBT (optional)
-- **Performance**: numba, scipy for optimization
+These changes significantly improve the stability and usability of the backtesting environment, especially when dealing with various data sources and plotting requirements.

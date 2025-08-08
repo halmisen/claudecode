@@ -1,0 +1,2 @@
+# 仅供本机安装使用
+ta-lib @ file:///D:/BIGBOSS/ta_lib-0.6.4-cp311-cp311-win_amd64.whl

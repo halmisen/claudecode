@@ -68,6 +68,8 @@ tmp/
 temp/
 *.tmp
 *.temp
+*.html
+preprocessed_*.csv
 
 # Claude settings
 .claude/settings.local.json
