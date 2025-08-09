@@ -11,8 +11,8 @@ Located primarily in the `pinescript/` directory, this section contains a librar
 
 ### 🐍 Python Backtesting
 The `backtester/` directory houses the Python-based backtesting framework, utilizing Backtrader.
--   `backtester/backtests/strategies/`: Contains Python implementations of trading strategies, including `doji3.py` which is a conversion from Pine Script.
--   `backtester/backtests/data/`: Stores historical market data used for backtesting.
+-   `backtester/strategies/`: Contains Python implementations of trading strategies, including `doji_ashi_strategy_v2.py` which is a conversion from Pine Script.
+-   `backtester/data/`: Stores historical market data used for backtesting.
 -   `backtester/requirements.txt`: Specifies Python dependencies for the backtesting environment.
 
 ### 📈 Interactive Visualization
@@ -62,12 +62,12 @@ Historical market data can be downloaded using the provided Python script:
 ```bash
 python download_data.py
 ```
-This script will download BTCUSDT data for 4-hour and 1-day intervals into `backtester/backtests/data/BTCUSDT/`.
+This script will download BTCUSDT data for 4-hour and 1-day intervals into `backtester/data/BTCUSDT/`.
 
 ### Running Backtests
-Backtrader strategies are Python scripts that can be executed directly. For example, to run `doji3.py`:
+Backtrader strategies are Python scripts that can be executed directly. For example, to run Doji Ashi v2:
 ```bash
-python backtester/backtests/strategies/doji3.py
+python claudecode/backtester/run_doji_ashi_strategy_v2.py
 ```
 The `if __name__ == '__main__':` block within strategy files typically contains the setup for `cerebro` (Backtrader's engine) and initiates the backtest.
 
@@ -95,8 +95,8 @@ All Pine Script development must adhere to the guidelines specified in `docs/pin
 -   **Code Structure**: Single-line `strategy()` and `indicator()` declarations, functions defined in global scope.
 -   **Type Safety & Performance**: Explicit type casting, input validation, and optimization techniques.
 
--### Python Development
--   **Standard Imports (VENV-aware rule)**: All Python strategy files (`backtester/backtests/strategies/*.py`) must begin with the following import template. Core imports reflect the current virtual environment. Optional packages are guarded with try/except to avoid runtime failures if not present.
+### Python Development
+   **Standard Imports (VENV-aware rule)**: All Python strategy files (`backtester/strategies/*.py`) should follow environment-aware imports. Optional packages are guarded with try/except to avoid runtime failures if not present.
 
     ```python
     # --- Standard Library ---
@@ -270,9 +270,9 @@ Claude Code includes automated context management through the context management
 This update details the improvements made to the backtesting setup, focusing on data handling, dependency compatibility, and plotting.
 
 *   **Automated Bokeh Plotting**:
-    *   Modified `backtester/backtests/strategies/dojo1_v2.py` to automatically use `Bokeh` for plotting when `cerebro.plot()` is called without an explicit `plotter` argument.
+    *   Modified earlier runner scripts to automatically use `Bokeh` for plotting when `cerebro.plot()` is called without an explicit `plotter` argument.
 *   **Dual Data Feed Support**:
-    *   Enhanced `backtester/backtests/strategies/dojo1_v2.py` to accept two distinct data feeds (`--main_data` for primary OHLCV and `--daily_data` for daily trend filtering) via command-line arguments.
+    *   Runner scripts accept two distinct data feeds (`--main_data` for primary OHLCV and `--daily_data` for daily trend filtering) via command-line arguments.
 *   **Dependency Compatibility Fixes**:
     *   **`numpy` and `bokeh`**: Resolved `AttributeError: module 'numpy' has no attribute 'bool8'` and `AttributeError: module 'numpy' has no attribute 'object'` by:
         *   Downgrading `numpy` to `1.26.4` in `requirements.txt`.

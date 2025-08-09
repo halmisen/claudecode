@@ -36,7 +36,7 @@ This is a comprehensive trading algorithm development project featuring Pine Scr
 - `requirements.txt` - Python dependencies for backtesting frameworks
 
 #### Python Backtesting Components
-- `backtests/` - Backtrader backtesting framework
+- `backtester/` - Backtrader backtesting framework
   - `src/` - Source code files (backtest_engine.py, bt_configurable.py, bt_simple.py, etc.)
   - `config/` - Configuration files for strategies and broker settings
   - `data/` - Historical data files (CSV format)
@@ -72,7 +72,7 @@ This is a comprehensive trading algorithm development project featuring Pine Scr
 
 ### Python Backtesting (Active Implementation)
 
-- **Standard Imports (VENV-aware rule)**: All Python strategy files (`backtester/backtests/strategies/*.py`) must begin with the following import template. Core imports reflect the current virtual environment. Optional packages are guarded with try/except to avoid runtime failures if not present.
+- **Standard Imports (VENV-aware rule)**: All Python strategy files (`backtester/strategies/*.py`) must begin with the following import template. Core imports reflect the current virtual environment. Optional packages are guarded with try/except to avoid runtime failures if not present.
 
   ```python
   # --- Standard Library ---
@@ -152,7 +152,7 @@ This is a comprehensive trading algorithm development project featuring Pine Scr
   - Keep optional dependencies behind capability flags (e.g., `HAS_PANDAS_TA`, `HAS_YFINANCE`).
   - Do not hard-crash on missing optional libs; degrade features instead.
 
-- **Backtrader Framework**: Complete backtesting system in `backtests/` with multiple strategies and configuration options
+- **Backtrader Framework**: Backtesting code in `backtester/` with strategies and runners
 - **Virtual Environment**: Use `venv/` for isolated Python development with all dependencies installed
 - **Dependencies**: Complete Python environment defined in `requirements.txt`
 - **Strategy Conversion**: Pine Script logic can be adapted to Python/pandas paradigms for backtesting
@@ -247,9 +247,9 @@ Claude Code includes automated context management through the context management
 This update details the improvements made to the backtesting setup, focusing on data handling, dependency compatibility, and plotting.
 
 *   **Automated Bokeh Plotting**:
-    *   Modified `backtester/backtests/strategies/dojo1_v2.py` to automatically use `Bokeh` for plotting when `cerebro.plot()` is called without an explicit `plotter` argument.
+*   Modified earlier runner scripts to automatically use `Bokeh` for plotting when `cerebro.plot()` is called without an explicit `plotter` argument.
 *   **Dual Data Feed Support**:
-    *   Enhanced `backtester/backtests/strategies/dojo1_v2.py` to accept two distinct data feeds (`--main_data` for primary OHLCV and `--daily_data` for daily trend filtering) via command-line arguments.
+*   Runner scripts accept two distinct data feeds (`--main_data` for primary OHLCV and `--daily_data` for daily trend filtering) via command-line arguments.
 *   **Dependency Compatibility Fixes**:
     *   **`numpy` and `bokeh`**: Resolved `AttributeError: module 'numpy' has no attribute 'bool8'` and `AttributeError: module 'numpy' has no attribute 'object'` by:
         *   Downgrading `numpy` to `1.26.4` in `requirements.txt`.

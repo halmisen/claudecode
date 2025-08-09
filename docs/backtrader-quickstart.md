@@ -52,7 +52,7 @@ Final Portfolio Value: 9855.62
 ## 常见问题
 
 - **`ModuleNotFoundError: No module named 'backtrader'`**: 依赖未正确安装。请确保你已**激活虚拟环境**并运行了 `pip install -r requirements.txt`。
-- **`FileNotFoundError`**: 找不到数据文件。请确保 `backtests/data` 目录下有 `.csv` 数据文件。
+- **`FileNotFoundError`**: 找不到数据文件。请确保 `backtester/data` 目录下有 `.csv` 数据文件。
 
 ## 下一步
 
