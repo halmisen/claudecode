@@ -11,9 +11,14 @@ Located primarily in the `pinescript/` directory, this section contains a librar
 
 ### 🐍 Python Backtesting
 The `backtester/` directory houses the Python-based backtesting framework, utilizing Backtrader.
--   `backtester/backtests/strategies/`: Contains Python implementations of trading strategies, including `doji3.py` which is a conversion from Pine Script.
--   `backtester/backtests/data/`: Stores historical market data used for backtesting.
+-   `backtester/strategies/`: Contains Python implementations of trading strategies, including `doji_ashi_strategy_v2.py` which is a conversion from Pine Script.
+-   `backtester/data/`: Stores historical market data used for backtesting.
 -   `backtester/requirements.txt`: Specifies Python dependencies for the backtesting environment.
+
+### 📈 Interactive Visualization
+-   `viz/`: Contains visualization modules, starting with `plotly_bt.py` for creating interactive charts from backtest results.
+-   `examples/`: Includes example scripts, such as `run_csv_and_plot.py`, demonstrating how to use the visualization tools.
+-   `reports/`: Default output directory for generated plots and reports.
 
 ### 📚 Documentation
 The `docs/` directory provides extensive documentation covering various aspects of the project.
@@ -24,8 +29,9 @@ The `docs/` directory provides extensive documentation covering various aspects 
 -   `docs/development-workflow.md`: Outlines the general development process, file operations, and Git workflow.
 
 ### 🛠️ Utilities
--   `backtester/scripts/download_data.py`: A Python script for downloading historical market data from Binance.
+-   `download_data.py`: A Python script for downloading historical market data from Binance.
 -   `requirements.txt`: Top-level Python dependencies for general project utilities and analysis.
+-   `requirements-local.txt`: For local-only dependencies that should not be committed to version control (e.g., locally built wheels).
 
 ## Building and Running
 
@@ -46,28 +52,38 @@ This project uses Python and relies on virtual environments for dependency manag
     ```bash
     pip install -r requirements.txt
     ```
-    Install Backtrader-specific dependencies:
+    For special local dependencies (like a custom-built TA-Lib wheel):
     ```bash
-    pip install -r backtester/requirements.txt
+    pip install -r requirements-local.txt
     ```
 
 ### Data Acquisition
 Historical market data can be downloaded using the provided Python script:
 ```bash
-python backtester/scripts/download_data.py
+python download_data.py
 ```
-This script will download BTCUSDT data for 4-hour and 1-day intervals into `backtester/backtests/data/BTCUSDT/`.
+This script will download BTCUSDT data for 4-hour and 1-day intervals into `backtester/data/BTCUSDT/`.
 
 ### Running Backtests
-Backtrader strategies are Python scripts that can be executed directly. For example, to run `doji3.py`:
+Backtrader strategies are Python scripts that can be executed directly. For example, to run Doji Ashi v2:
 ```bash
-python backtester/backtests/strategies/doji3.py
+python claudecode/backtester/run_doji_ashi_strategy_v2.py
 ```
 The `if __name__ == '__main__':` block within strategy files typically contains the setup for `cerebro` (Backtrader's engine) and initiates the backtest.
 
+### Generating Interactive Plots
+You can generate interactive Plotly charts from CSV files containing OHLCV data, and optionally include trade markers and equity curves.
+```bash
+# Basic plot from OHLCV data
+python examples/run_csv_and_plot.py --csv path/to/your/ohlcv.csv --out reports/my_plot.html
+
+# Plot with trades and equity curve
+python examples/run_csv_and_plot.py --csv path/to/ohlcv.csv --trades path/to/trades.csv --equity path/to/equity.csv --out reports/full_backtest.html --title "My Strategy Backtest"
+```
+
 ### Pine Script Usage
-Pine Script files (`.PINE` extension) are designed for use on the TradingView platform. They are not compiled or run locally in the traditional sense. To use them:
-1.  Open the desired `.PINE` file in a text editor.
+Pine Script files (`.pine` extension) are designed for use on the TradingView platform. They are not compiled or run locally in the traditional sense. To use them:
+1.  Open the desired `.pine` file in a text editor.
 2.  Copy the entire script content.
 3.  Paste it into the Pine Editor on TradingView and save it as a new indicator or strategy.
 
@@ -80,6 +96,84 @@ All Pine Script development must adhere to the guidelines specified in `docs/pin
 -   **Type Safety & Performance**: Explicit type casting, input validation, and optimization techniques.
 
 ### Python Development
+   **Standard Imports (VENV-aware rule)**: All Python strategy files (`backtester/strategies/*.py`) should follow environment-aware imports. Optional packages are guarded with try/except to avoid runtime failures if not present.
+
+    ```python
+    # --- Standard Library ---
+    import datetime
+    from typing import Optional
+
+    # --- Core Scientific ---
+    import numpy as np
+    import pandas as pd
+
+    # Optional scientific (guarded)
+    try:
+        from scipy import stats  # noqa: F401
+    except Exception:
+        stats = None
+
+    # --- Backtesting ---
+    import backtrader as bt
+
+    # TA-Lib (installed in venv) and Backtrader-TALIB bridge
+    try:
+        import talib  # noqa: F401
+        HAS_TALIB = True
+    except Exception:
+        talib = None
+        HAS_TALIB = False
+
+    # pandas_ta: optional
+    try:
+        import pandas_ta as ta  # noqa: F401
+        HAS_PANDAS_TA = True
+    except Exception:
+        ta = None
+        HAS_PANDAS_TA = False
+
+    # --- Data & HTTP ---
+    import requests  # installed in venv
+    try:
+        import yfinance as yf  # noqa: F401
+        HAS_YFINANCE = True
+    except Exception:
+        yf = None
+        HAS_YFINANCE = False
+
+    # --- Visualization ---
+    import matplotlib.pyplot as plt
+    try:
+        import seaborn as sns  # noqa: F401
+        HAS_SEABORN = True
+    except Exception:
+        sns = None
+        HAS_SEABORN = False
+    try:
+        import plotly.graph_objects as go  # noqa: F401
+        HAS_PLOTLY = True
+    except Exception:
+        go = None
+        HAS_PLOTLY = False
+
+    # --- Performance & Utilities (optional) ---
+    try:
+        from numba import jit  # noqa: F401
+        HAS_NUMBA = True
+    except Exception:
+        jit = None
+        HAS_NUMBA = False
+    try:
+        from loguru import logger  # noqa: F401
+        HAS_LOGURU = True
+    except Exception:
+        logger = None
+        HAS_LOGURU = False
+    ```
+    - **Usage Guidance**:
+      - Prefer TA-Lib indicators when `HAS_TALIB` is True; otherwise gracefully fallback to Backtrader indicators.
+      - Keep optional dependencies behind capability flags (e.g., `HAS_PANDAS_TA`, `HAS_YFINANCE`).
+      - Do not hard-crash on missing optional libs; degrade features instead.
 -   **Virtual Environments**: Always work within the activated `venv/` to manage dependencies.
 -   **Backtrader Usage**: Refer to `docs/backtrader-quickstart.md` for core concepts and `docs/backtrader-parameter-reference.md` for detailed parameter usage.
 -   **Strategy Conversion**: When converting Pine Script to Python, follow the guidelines in `docs/strategy-conversion-guide.md`.
@@ -171,47 +265,23 @@ Claude Code includes automated context management through the context management
 
 ## Recent Changes
 
-### `Doji_Ashi_Strategy 2.6.PINE` Default Settings Update
+### Backtesting Setup and Data Preprocessing Enhancements
 
-The default input settings for `strategies/reversal/Doji_Ashi_Strategy 2.6.PINE` have been updated to streamline testing and provide a more focused baseline configuration.
+This update details the improvements made to the backtesting setup, focusing on data handling, dependency compatibility, and plotting.
 
-**Summary of Changes:**
+*   **Automated Bokeh Plotting**:
+    *   Modified earlier runner scripts to automatically use `Bokeh` for plotting when `cerebro.plot()` is called without an explicit `plotter` argument.
+*   **Dual Data Feed Support**:
+    *   Runner scripts accept two distinct data feeds (`--main_data` for primary OHLCV and `--daily_data` for daily trend filtering) via command-line arguments.
+*   **Dependency Compatibility Fixes**:
+    *   **`numpy` and `bokeh`**: Resolved `AttributeError: module 'numpy' has no attribute 'bool8'` and `AttributeError: module 'numpy' has no attribute 'object'` by:
+        *   Downgrading `numpy` to `1.26.4` in `requirements.txt`.
+        *   Temporarily patching `backtester/venv/Lib/site-packages/backtrader_plotting/bokeh/figure.py` to replace `np.object` with `object` (Note: This is a temporary fix and will be overwritten upon reinstallation of `backtrader_plotting`).
+    *   **`backtrader_plotting` Module**: Added `backtrader_plotting==2.0.0` to `requirements.txt` to ensure its proper installation.
+*   **Robust Timestamp Handling (Data Preprocessing)**:
+    *   Addressed `ValueError: time data '...' does not match format '%Y-%m-%d %H:%M:%S'` by:
+        *   Creating `preprocess_data.py` to convert毫秒级 Unix 时间戳 to `YYYY-MM-DD HH:MM:SS` format.
+        *   Integrated `preprocess_data.py` into `dojo1_v2.py` to automatically preprocess data files before loading them into `backtrader`. This ensures consistent date/time formatting.
+    *   Modified `preprocess_data.py` to use `errors='coerce'` during `pd.to_datetime` conversion to handle any invalid timestamps gracefully.
 
-*   **General Filters:** Most boolean (true/false) filters have been disabled by default to allow for more targeted analysis.
-    *   `Use Market Trend Filter (SPY/BTC)`: `false`
-    *   `Use Relative Strength Filter`: `false`
-    *   `Use Relative Volume Filter`: `false`
-    *   `Use Trailing Stop`: `false`
-    *   `Use Time-based Exit`: `false`
-    *   All visualization options (`Show SL/TP Levels`, `Show VWAP Line`, etc.): `false`
-*   **Core Logic Enabled:**
-    *   `Use Daily Trend Filter (Above SMAs)`: Remains `true` as a core component of the strategy's logic.
-    *   `Use Entry Trigger`: Set to `true` to enforce the 3/8 MA entry condition.
-*   **Configuration Presets:**
-    *   `Market Type Preset`: Defaulted to `"crypto"`.
-    *   `Trade Direction`: Defaulted to `"long"`.
-    *   `Trigger MA Type`: Defaulted to `"EMA"`.
-    *   `3/8 MA Entry Mode`: Defaulted to `"Above/Below"`.
-
-These changes establish a cleaner starting point for strategy analysis, focusing on the daily trend filter and the EMA-based entry trigger.
-
-
-### Documentation System Overhaul
-
-Updated and expanded documentation system:
-
-- **Main Index**: `docs/README.md` with comprehensive documentation navigation
-- **Development Workflow**: `docs/development-workflow.md` for command operations
-- **Python Frameworks**: `docs/python-frameworks-guide.md` for VectorBT integration
-- **Strategy Conversion**: `docs/strategy-conversion-guide.md` for Pine → Python conversion
-- **Context Management**: `docs/context-management-guide.md` for conversation optimization
-
-### Requirements Management
-
-Added complete `requirements.txt` with all necessary Python dependencies:
-
-- **Data Analysis**: pandas, numpy, pandas-ta
-- **Visualization**: matplotlib, seaborn, plotly
-- **Machine Learning**: scikit-learn, optional TensorFlow/PyTorch
-- **Backtesting**: VectorBT (optional)
-- **Performance**: numba, scipy for optimization
+These changes significantly improve the stability and usability of the backtesting environment, especially when dealing with various data sources and plotting requirements.

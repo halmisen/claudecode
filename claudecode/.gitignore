@@ -62,22 +62,20 @@ logs/
 # Backtest results
 backtests/
 results/
-backtester/backtests/data/
-!backtester/backtests/strategies/
-
-# PineScript Strategies
-claudecode/pinescript/strategies/*
 
 # Temporary files
 tmp/
 temp/
 *.tmp
 *.temp
+*.html
+preprocessed_*.csv
 
 # Claude settings
 .claude/settings.local.json
 
 # Temp data
 temp_data/
+backtester/requirements.txt
 
  

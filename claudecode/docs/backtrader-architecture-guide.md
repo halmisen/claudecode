@@ -11,14 +11,10 @@
 我们的回测系统由以下几个核心组件构成：
 
 ```
-backtests/
-├── config/
-│   └── config.py          # 策略配置中心
-├── src/
-│   └── strategies.py      # 统一的策略库
-├── main.py                # 主回测运行器
-└── data/
-    └── ...                # CSV数据文件
+backtester/
+├── strategies/            # 单独策略文件（或统一策略库）
+├── run_*.py               # 简单策略运行入口（示例）
+└── data/                  # CSV数据文件
 ```
 
 - **`config.py`**: 所有策略的参数都在这里统一配置。我们通过修改这个文件来选择运行哪个策略、调整其参数。
@@ -31,11 +27,11 @@ backtests/
 
 ### 第一步：在 `strategies.py` 中定义策略逻辑
 
-打开 `backtests/src/strategies.py`，在文件末尾添加你的新策略类。它必须继承自 `backtrader.Strategy`。
+在 `backtester/strategies/` 下新增策略类文件（或集中到一个库文件）。它必须继承自 `backtrader.Strategy`。
 
 **示例：添加一个RSI策略**
 ```python
-# backtests/src/strategies.py
+# backtester/strategies/your_strategy.py
 
 # ... (已有代码) ...
 
@@ -61,7 +57,7 @@ class RSIStrategy(bt.Strategy):
 
 ### 第二步：在 `config.py` 中添加策略配置
 
-打开 `backtests/config/config.py`，在 `STRATEGY_CONFIGS` 字典中为你的新策略添加一个条目。
+（若采用集中式配置）打开对应配置文件，添加你的新策略配置；或在运行脚本里直接传参。
 
 - `key` (例如 `'rsi_70_30'`) 是你将用来调用该策略的唯一ID。
 - `'class'` 的值必须与你在 `strategies.py` 中定义的类名完全一致。
@@ -69,7 +65,7 @@ class RSIStrategy(bt.Strategy):
 
 **示例：配置RSI策略**
 ```python
-# backtests/config/config.py
+# backtester/config/config.py (可选)
 
 STRATEGY_CONFIGS = {
     # ... (已有配置) ...
@@ -87,10 +83,10 @@ STRATEGY_CONFIGS = {
 
 ### 第三步：在 `main.py` 中指定要运行的策略
 
-打开 `backtests/main.py`，修改 `STRATEGY_TO_RUN` 变量，将其值设为你刚刚在 `config.py` 中定义的策略ID。
+在运行脚本 `run_*.py` 中选择要运行的策略类，或通过命令行参数指定。
 
 ```python
-# backtests/main.py
+# backtester/run_your_strategy.py
 
 # ... (已有代码) ...
 
@@ -104,13 +100,10 @@ STRATEGY_TO_RUN = 'rsi_70_30'
 
 ### 第四步：运行回测
 
-回到命令行，确保你位于 `backtests` 目录下，然后运行主程序：
+回到命令行，确保你位于项目根目录下，然后运行示例回测脚本：
 
 ```bash
-# 确保位于 backtests 目录
-# cd backtests
-
-python main.py
+python claudecode/backtester/run_doji_ashi_strategy_v2.py
 ```
 
 系统将自动加载 `RSIStrategy`，应用 `rsi_70_30` 配置，并输出回测结果。
