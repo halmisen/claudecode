@@ -294,13 +294,17 @@ def main():
     parser.add_argument('--symbol', default='BTCUSDT', help='Trading pair, e.g., BTCUSDT')
     parser.add_argument('--interval', default='4h', help='Kline interval, e.g., 1m, 1h, 4h, 1d')
     parser.add_argument('--market', default='um', choices=['um', 'cm'], help='Futures market: um (USD-M), cm (COIN-M)')
-    parser.add_argument('--start-date', default='2019-09-10', help='Inclusive start date YYYY-MM-DD')
+    parser.add_argument('--start-date', default='2024-01-01', help='Inclusive start date YYYY-MM-DD (default: 2024-01-01)')
     parser.add_argument('--end-date', default=datetime.utcnow().strftime('%Y-%m-%d'), help='Inclusive end date YYYY-MM-DD')
     parser.add_argument('--workers', type=int, default=10, help='Number of concurrent download workers')
     parser.add_argument('--rate-limit', type=float, default=5.0, help='Max requests per second for downloads')
     parser.add_argument('--skip-unzip', action='store_true', help='Only download ZIPs, do not unzip')
     parser.add_argument('--skip-download', action='store_true', help='Only process existing ZIPs, do not download')
-    parser.add_argument('--merge-csv', action='store_true', help='Merge all individual CSVs into a single file after unzipping')
+    # Merge behavior defaults to ON; allow opting out with --no-merge-csv
+    merge_group = parser.add_mutually_exclusive_group()
+    merge_group.add_argument('--merge-csv', dest='merge_csv', action='store_true', help='Merge all individual CSVs into a single file after unzipping (default)')
+    merge_group.add_argument('--no-merge-csv', dest='merge_csv', action='store_false', help='Do not merge CSVs after unzipping')
+    parser.set_defaults(merge_csv=True)
 
     args = parser.parse_args()
 
