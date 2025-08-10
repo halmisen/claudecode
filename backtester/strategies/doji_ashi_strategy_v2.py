@@ -49,9 +49,14 @@ class DojiAshiStrategyV2(bt.Strategy):
         ("leverage", 4.0),
         ("cooldown_bars", 10),
         ("maker_mode", True),
+        ("maker_limit_offset_percent", 0.02),  # 0.02% default maker offset to avoid instant fill
+        ("pending_order_timeout_bars", 10),    # cancel unfilled maker orders after N bars
 
         # TALib preference
         ("use_talib", True),
+
+        # Warmup control
+        ("warmup_daily", 200),
     )
 
     def __init__(self):
@@ -138,10 +143,11 @@ class DojiAshiStrategyV2(bt.Strategy):
         self.tp_order = None
         self.trail_order = None
         self.entry_bar_index = None
-        # Warmup bars for daily indicators
-        self.warmup_daily = max(200, int(self.p.atr_length))
+        # Warmup bars for daily indicators (allow override via param)
+        self.warmup_daily = max(int(self.p.warmup_daily), int(self.p.atr_length))
         self.last_long_bar = -10 ** 9
         self.last_short_bar = -10 ** 9
+        self.parent_order_placed_bar = None
 
     # -------- Utility helpers --------
     def _confirmed_daily(self, line) -> bool:
@@ -206,7 +212,18 @@ class DojiAshiStrategyV2(bt.Strategy):
 
         # If any orders are pending or position open, manage exit/time only
         if self.parent_order or self.sl_order or self.tp_order or self.trail_order:
+            # pending maker order timeout handling
+            if self.parent_order and self.p.maker_mode and int(self.p.pending_order_timeout_bars) > 0:
+                try:
+                    placed_delta = (len(self) - int(self.parent_order_placed_bar)) if self.parent_order_placed_bar is not None else 0
+                    if placed_delta >= int(self.p.pending_order_timeout_bars) and self.parent_order.alive():
+                        self.cancel(self.parent_order)
+                        self.parent_order = None
+                        self.parent_order_placed_bar = None
+                except Exception:
+                    pass
             self._check_time_exit()
+            # do not place new orders while any are pending/managed this bar
             return
 
         if self.position:
@@ -224,17 +241,28 @@ class DojiAshiStrategyV2(bt.Strategy):
 
         if allow_long:
             size = self._calc_size()
-            if size > 0:
-                if self.p.maker_mode:
-                self.parent_order = self.buy(size=size, exectype=bt.Order.Limit, price=self.data_close[0])
+            if size <= 0:
+                return
+            if self.p.maker_mode:
+                # place a slightly off-market limit to avoid taker
+                offset = float(self.p.maker_limit_offset_percent) / 100.0
+                limit_price = float(self.data_close[0]) * (1.0 - offset)
+                self.parent_order = self.buy(size=size, exectype=bt.Order.Limit, price=limit_price)
+                self.parent_order_placed_bar = current_bar
+                self.last_long_bar = current_bar
             else:
                 self.parent_order = self.buy(size=size, exectype=bt.Order.Market)
                 self.last_long_bar = current_bar
         elif allow_short:
             size = self._calc_size()
-            if size > 0:
-                if self.p.maker_mode:
-                self.parent_order = self.sell(size=size, exectype=bt.Order.Limit, price=self.data_close[0])
+            if size <= 0:
+                return
+            if self.p.maker_mode:
+                offset = float(self.p.maker_limit_offset_percent) / 100.0
+                limit_price = float(self.data_close[0]) * (1.0 + offset)
+                self.parent_order = self.sell(size=size, exectype=bt.Order.Limit, price=limit_price)
+                self.parent_order_placed_bar = current_bar
+                self.last_short_bar = current_bar
             else:
                 self.parent_order = self.sell(size=size, exectype=bt.Order.Market)
                 self.last_short_bar = current_bar
@@ -296,6 +324,7 @@ class DojiAshiStrategyV2(bt.Strategy):
                 self.entry_bar_index = len(self)
                 self._submit_children_after_fill(order)
                 self.parent_order = None
+                self.parent_order_placed_bar = None
             else:
                 # Child orders filled → clear references
                 if order == self.sl_order:
@@ -313,6 +342,7 @@ class DojiAshiStrategyV2(bt.Strategy):
             # Clear references on failure
             if order == self.parent_order:
                 self.parent_order = None
+                self.parent_order_placed_bar = None
             elif order == self.sl_order:
                 self.sl_order = None
             elif order == self.tp_order:

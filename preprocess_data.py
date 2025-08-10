@@ -1,26 +1,53 @@
 import pandas as pd
-import sys
-import os
+from pathlib import Path
 
-def preprocess_csv(input_path, output_path):
+def load_data_with_naive_datetime_index(file_path: str | Path) -> pd.DataFrame:
+    """
+    Loads data from a CSV file, converts the millisecond timestamp column
+    into a timezone-naive DatetimeIndex, and returns the processed DataFrame.
+
+    This function does not write any files to disk.
+
+    Args:
+        file_path: The path to the CSV file.
+
+    Returns:
+        A pandas DataFrame with a naive datetime index, ready for backtesting.
+        Returns an empty DataFrame if an error occurs.
+    """
     try:
-        df = pd.read_csv(input_path)
-        # Assuming the timestamp is in the first column (index 0)
-        # and is in milliseconds
-        df.iloc[:, 0] = pd.to_datetime(df.iloc[:, 0], unit='ms', errors='coerce').dt.strftime('%Y-%m-%d %H:%M:%S')
-        df.to_csv(output_path, index=False)
-        print(f"Successfully preprocessed {input_path} to {output_path}")
-        return output_path
-    except Exception as e:
-        print(f"Error preprocessing {input_path}: {e}", file=sys.stderr)
-        sys.exit(1)
+        df = pd.read_csv(file_path)
 
-if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        print("Usage: python preprocess_data.py <input_csv_path> <output_csv_path>", file=sys.stderr)
-        sys.exit(1)
-    
-    input_csv_path = sys.argv[1]
-    output_csv_path = sys.argv[2]
-    
-    preprocess_csv(input_csv_path, output_csv_path)
+        # Determine the timestamp column, preferring 'open_time'
+        if 'open_time' in df.columns:
+            ts_column = 'open_time'
+        else:
+            # Fallback to the first column if 'open_time' is not present
+            ts_column = df.columns[0]
+
+        # Convert millisecond timestamp to a timezone-naive datetime index
+        # 1. Convert to datetime object (pandas assumes UTC for unix timestamps)
+        # 2. Remove timezone info to make it naive, as required by backtrader
+        datetime_index = pd.to_datetime(df.pop(ts_column), unit='ms', utc=True).dt.tz_localize(None)
+
+        df.index = datetime_index
+        df.index.name = 'datetime'
+
+        # Ensure standard OHLCV columns are numeric and sort by time
+        ohlcv_cols = ['open', 'high', 'low', 'close', 'volume']
+        for col in ohlcv_cols:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors='coerce')
+
+        # Sort by index and remove any duplicate timestamps
+        df = df.sort_index()
+        df = df.loc[~df.index.duplicated(keep='first')]
+
+        return df
+
+    except FileNotFoundError:
+        print(f"Error: The file was not found at {file_path}")
+        return pd.DataFrame()
+    except Exception as e:
+        print(f"An error occurred while processing {file_path}: {e}")
+        return pd.DataFrame()
