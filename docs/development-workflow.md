@@ -1,6 +1,6 @@
 # Development Workflow Guide
 
-This document provides detailed command-line operations and development workflows for the KFC trading algorithm project.
+This document provides detailed command-line operations and development workflows for the cryptocurrency trading strategy project.
 
 ## Pine Script Development Workflow
 
@@ -15,10 +15,10 @@ This document provides detailed command-line operations and development workflow
 #### Naming Convention
 - Use underscores instead of spaces and special characters
 - Remove brackets, plus signs, and other special characters
-- Indicators: `Category_Name.PINE` (e.g., `Squeeze_Momentum_LB.PINE`)
-- Strategies: `Approach_Strategy.PINE` (e.g., `Simple_Reversal_Strategy.PINE`)
+- Indicators: `Category_Name.pine` (e.g., `Squeeze_Momentum_LB.pine`)
+- Strategies: `Approach_Strategy.pine` (e.g., `Simple_Reversal_Strategy.pine`)
 - Version numbers use underscores: `v2_5` instead of `v2.5`
-- All files use `.PINE` extension for consistency
+- All files use `.pine` extension for consistency
 
 #### Documentation Standards
 - Standardized summary modules at the beginning of each file

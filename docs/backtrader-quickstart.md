@@ -6,13 +6,13 @@
 
 ## 步骤一：检查并激活虚拟环境
 
-首先，确保项目根目录下存在 `venv` 虚拟环境。
+首先，确保项目 `claudecode` 目录下存在 `venv` 虚拟环境。
 
 在 Windows 系统中，使用以下命令激活它：
 
 ```bash
 # 激活虚拟环境
-.\venv\Scripts\activate
+.\claudecode\venv\Scripts\activate
 ```
 
 激活成功后，你的命令行提示符前会显示 `(venv)`。
@@ -23,39 +23,49 @@
 
 ```bash
 # 在激活虚拟环境后运行
-pip install -r requirements.txt
+pip install -r claudecode/requirements.txt
 ```
 
-## 步骤三：运行简单回测
+## 步骤三：运行 Doji Ashi 策略回测
 
-我们提供了一个开箱即用的简单回测脚本 `bt_simple.py`。
+我们提供了最新的 Doji Ashi v4 策略，具有完整的 Plotly 可视化功能。
 
-进入 `backtests` 目录并运行它：
+运行 v4 策略回测：
 
 ```bash
-# 进入回测脚本所在目录
-cd backtests
-
-# 运行回测
-python bt_simple.py
+# 运行最新的 Doji Ashi v4 策略
+python claudecode/backtester/run_doji_ashi_strategy_v4.py \
+  --data claudecode/backtester/data/ETHUSDT/2h/ETHUSDT-2h-merged.csv \
+  --market_type crypto \
+  --enable_plotly
 ```
 
 **预期输出：**
 
-你将看到类似以下的输出，表明回测已成功执行：
+你将看到策略回测结果和性能指标，并在浏览器中自动打开交互式图表：
 
 ```
-Starting Portfolio Value: 10000.00
-Final Portfolio Value: 9855.62
+Strategy completed successfully
+Total Return: 15.34%
+Sharpe Ratio: 0.87
+Max Drawdown: -8.23%
+Plot saved to: claudecode/backtester/plots/doji_ashi_v4_crypto_*.html
 ```
 
 ## 常见问题
 
-- **`ModuleNotFoundError: No module named 'backtrader'`**: 依赖未正确安装。请确保你已**激活虚拟环境**并运行了 `pip install -r requirements.txt`。
-- **`FileNotFoundError`**: 找不到数据文件。请确保 `backtester/data` 目录下有 `.csv` 数据文件。
+- **`ModuleNotFoundError: No module named 'backtrader'`**: 依赖未正确安装。请确保你已**激活虚拟环境**并运行了 `pip install -r claudecode/requirements.txt`。
+- **`FileNotFoundError`**: 找不到数据文件。请确保 `claudecode/backtester/data/` 目录下有对应的 `.csv` 数据文件。
+- **Plotly 图表无法打开**: 检查是否安装了 `plotly` 依赖，或尝试禁用 `--enable_plotly` 参数。
 
 ## 下一步
 
-恭喜你成功运行了第一次回测！
+恭喜你成功运行了第一次策略回测！
+
+接下来你可以：
+1. 阅读 [Doji Ashi v4 完整指南](./strategies/dojo_ashi_strategy_v4_guide.md) 了解策略详细配置
+2. 尝试不同的市场数据 (BTC, SOL 等)
+3. 调整策略参数进行优化
+4. 学习 [Pine Script 开发标准](./pine-script-standards.md) 开发自己的策略
 
 现在，请阅读 **[Backtrader 核心架构指南](./backtrader-architecture-guide.md)**，学习如何利用本项目的配置驱动架构来开发和管理你自己的策略。
