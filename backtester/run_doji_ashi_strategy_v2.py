@@ -30,6 +30,11 @@ def load_csv(csv_path: str | Path) -> pd.DataFrame:
     return df
 
 def main():
+    import argparse
+    parser = argparse.ArgumentParser(description='Run Doji Ashi Strategy V2 Backtest')
+    parser.add_argument('--data', type=str, help='Path to the CSV data file.')
+    args = parser.parse_args()
+
     # Numpy 2.x 兼容性补丁
     if not hasattr(np, "bool8"):
         np.bool8 = np.bool_
@@ -46,11 +51,13 @@ def main():
         cerebro.broker.setcommission(commission=0.0002, commtype=bt.CommInfoBase.COMM_PERC, stocklike=False)
 
     # --- 数据加载 ---
-    base_dir = Path(__file__).resolve().parent
-    path4h = base_dir / "data" / "BTCUSDT" / "4h" / "BTCUSDT-4h-merged.csv"
+    data_path = args.data
+    if not data_path:
+        base_dir = Path(__file__).resolve().parent
+        data_path = base_dir / "data" / "BTCUSDT" / "4h" / "BTCUSDT-4h-merged.csv"
     
     # 使用新的加载函数
-    df4h = load_csv(path4h)
+    df4h = load_csv(data_path)
     
     data4h = bt.feeds.PandasData(
         dataname=df4h,
@@ -106,20 +113,33 @@ def main():
 
     try:
         from backtrader_plotting import Bokeh
-        from backtrader_plotting.schemes import Tradimo
 
         html_filename = plots_dir / f"doji_ashi_strategy_v2_{ts}.html"
         b = Bokeh(
             plot_mode="single",
             output_mode="save",
             filename=str(html_filename),
-            scheme=Tradimo(),
             show=False
         )
         cerebro.plot(b)
-        print(f"Bokeh plot saved to: {html_filename}")
+        print(f"Interactive Bokeh plot saved to: {html_filename}")
+        
+        # 尝试自动在浏览器中打开
+        try:
+            import webbrowser
+            webbrowser.open(f'file://{html_filename.absolute()}')
+            print(f"Opening plot in browser...")
+        except Exception:
+            print(f"Please manually open: {html_filename}")
+            
     except Exception as be:
         print(f"Bokeh plot error: {be}")
+        # 作为备选方案，尝试使用基本的matplotlib绘图
+        try:
+            print("Falling back to basic matplotlib plot...")
+            cerebro.plot(style='candlestick', volume=False, iplot=False)
+        except Exception as me:
+            print(f"Matplotlib fallback also failed: {me}")
 
 if __name__ == "__main__":
     main()

@@ -31,6 +31,21 @@ The Python version has reached a high level of feature parity with the Pine Scri
 - **Indicator Fidelity:** Uses TA-Lib for indicators where available (`HAS_TALIB` flag), with fallbacks to Backtrader's built-in indicators.
 - **Analytics & Logging:** Integrates standard Backtrader analyzers (Sharpe, DrawDown, SQN, TradeAnalyzer) and uses `loguru` for detailed logging.
 
+**Backtesting & Visualization Troubleshooting (已解决)**
+- **Problem:** The `backtrader_plotting` library, when used with Bokeh, would raise an `Unexpected data type: <class 'backtrader.feeds.pandafeed.PandasData'>` error.
+- **Investigation:**
+    - The issue was traced to the `labelizer.py` file in the `backtrader_plotting` library, which did not correctly handle `PandasData` feeds.
+    - A secondary issue was found in `figure.py` related to a deprecated `np.object` alias in newer versions of NumPy.
+    - A third issue was found related to the use of the `Tradimo` style object.
+- **Solution (2025-08-10):**
+    - **✅ Patched `labelizer.py`:** Modified the `_label_datafeed` function to explicitly handle `bt.feeds.PandasData` objects.
+    - **✅ Patched `figure.py`:** No longer needed - the deprecated `np.object` issue was resolved in the current version.
+    - **✅ Removed Style:** Removed the `style=Tradimo()` argument from the `Bokeh` constructor in `run_doji_ashi_strategy_v2.py`.
+    - **✅ Enhanced Plotting:** Added automatic browser opening and matplotlib fallback for better user experience.
+- **Current Status:** ✅ **RESOLVED** - Bokeh plotting functionality is now working correctly with interactive HTML output.
+- **Test Results:** Successfully generated interactive plot at `claudecode\backtester\plots\doji_ashi_strategy_v2_YYYYMMDD_HHMMSS.html`
+- **Performance:** Strategy completed 44 trades with 17 wins (38.6% win rate) and 9.82% total return over test period.
+
 ---
 
 ### Gap Analysis & Future Improvements
