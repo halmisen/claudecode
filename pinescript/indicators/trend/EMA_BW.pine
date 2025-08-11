@@ -1,0 +1,60 @@
+// ⌘ SUMMARY:
+// Type: indicator
+// Purpose: Simple multi-period EMA indicator with labels
+// Key Inputs: Label visibility, size, transparency
+// Outputs: EMA21, EMA55, EMA100, EMA200 lines with optional labels
+// Functions: ta.ema(), label.new()
+// Logic: Calculates and plots 4 EMAs with configurable display options and labels on last 30 bars
+
+//@version=5
+indicator(title="EMA 多周期指标", overlay=true)
+
+// 配置结构
+type EMAPeriod
+    int period
+    string label
+    color lineColor
+
+// 常量定义
+const int DEFAULT_LAST_BARS = 30
+const float MAX_INPUT_VALUE = 1000.0
+const float MIN_INPUT_VALUE = 0.0
+
+// 输入参数
+bool_showLabels = input.bool(true, "显示标签")
+string_labelSize = input.string("small", "标签大小", options=["tiny", "small", "normal", "large"])
+int_transparency = input.int(20, "透明度", minval=0, maxval=100)
+
+// EMA周期配置
+var color_ema21 = color.new(#808080, 0)
+var color_ema55 = color.new(#666666, 0)
+var color_ema100 = color.new(#4D4D4D, 0)
+var color_ema200 = color.new(#333333, 0)
+
+// 工具函数
+bool_isValidInput(float_value) => not na(float_value) and float_value > MIN_INPUT_VALUE and float_value < MAX_INPUT_VALUE
+float_calcEMA(int_period) => ta.ema(close, int_period)
+string_getLabelSize(string_size) => string_size == "tiny" ? size.tiny : string_size == "normal" ? size.normal : string_size == "large" ? size.large : size.small
+
+// 计算EMA值
+float_ema21 = float_calcEMA(21)
+float_ema55 = float_calcEMA(55)
+float_ema100 = float_calcEMA(100)
+float_ema200 = float_calcEMA(200)
+
+// 验证输入
+bool_isValid = bool_isValidInput(float(21)) and bool_isValidInput(float(55)) and bool_isValidInput(float(100)) and bool_isValidInput(float(200))
+
+// 绘制EMA线
+plot(bool_isValid ? float_ema21 : na, color=color_ema21, title="EMA21", linewidth=1)
+plot(bool_isValid ? float_ema55 : na, color=color_ema55, title="EMA55", linewidth=1)
+plot(bool_isValid ? float_ema100 : na, color=color_ema100, title="EMA100", linewidth=1)
+plot(bool_isValid ? float_ema200 : na, color=color_ema200, title="EMA200", linewidth=1)
+
+// 只在最近30根K线的最新K线位置添加标签
+if bar_index > last_bar_index - DEFAULT_LAST_BARS and bool_isValid
+    if barstate.islast
+        label.new(bar_index, float_ema21, text="EMA21: " + str.tostring(float_ema21, "#.##"), color=na, textcolor=color.new(color_ema21, int_transparency), style=label.style_label_right, size=string_getLabelSize(string_labelSize))
+        label.new(bar_index, float_ema55, text="EMA55: " + str.tostring(float_ema55, "#.##"), color=na, textcolor=color.new(color_ema55, int_transparency), style=label.style_label_right, size=string_getLabelSize(string_labelSize))
+        label.new(bar_index, float_ema100, text="EMA100: " + str.tostring(float_ema100, "#.##"), color=na, textcolor=color.new(color_ema100, int_transparency), style=label.style_label_right, size=string_getLabelSize(string_labelSize))
+        label.new(bar_index, float_ema200, text="EMA200: " + str.tostring(float_ema200, "#.##"), color=na, textcolor=color.new(color_ema200, int_transparency), style=label.style_label_right, size=string_getLabelSize(string_labelSize))

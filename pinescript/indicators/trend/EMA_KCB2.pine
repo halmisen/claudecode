@@ -1,0 +1,219 @@
+// ⌘ SUMMARY:
+// Type: indicator
+// Purpose: EMA & Keltner Channels with RSI divergence and candle coloring
+// Key Inputs: EMA colors, KCB parameters, RSI settings, divergence options, candle coloring
+// Outputs: EMAs, KCB bands, RSI divergence lines, colored candles based on RSI
+// Functions: esma(), ta.rsi(), divergence detection, array operations
+// Logic: Plots EMAs and KCB bands, detects RSI divergences, colors candles based on RSI overbought/oversold levels
+
+//@version=6
+indicator("EMA & Keltner Channels Bands with RSI", "EMA-KCB-RSI XZ 7.24", overlay=true)
+
+//#region EMA Inputs
+string_ema_group = "=== EMA Settings ==="
+color_ema21 = input.color(color.new(#808080, 0), "EMA21颜色", inline="0", group=string_ema_group)
+color_ema55 = input.color(color.new(#666666, 0), "EMA55颜色", inline="1", group=string_ema_group)
+color_ema100 = input.color(color.new(#4D4D4D, 0), "EMA100颜色", inline="2", group=string_ema_group)
+color_ema200 = input.color(color.new(#333333, 0), "EMA200颜色", inline="3", group=string_ema_group)
+
+//#region KCB Inputs
+string_inside_group = "=== Inside Band ==="
+bool_on1 = input.bool(true,"", inline="0",group=string_inside_group)
+float_src1 = input.source(high, title="Source", inline="0",group=string_inside_group)
+color_inside = input.color(color.new(color.white,100), "",inline="0",group=string_inside_group)
+int_length1 = input.int(77, "Length", minval=1, inline="0.1",group=string_inside_group)
+float_mult1 = input.float(4.0, "Multi", inline="0.1",group=string_inside_group)
+
+const int ATR_LENGTH1 = 10
+const bool EXP1 = true
+const string BANDS_STYLE1 = "Range"
+
+string_outside_group = "=== Outside Band ==="
+bool_on2 = input.bool(true,"", inline="0",group=string_outside_group)
+float_src2 = input.source(high, title="Source", inline="0",group=string_outside_group)
+color_outside = input.color(color.new(color.gray,90), "",inline="0",group=string_outside_group)
+int_length2 = input.int(36, "Length", minval=1, inline="0.1",group=string_outside_group)
+float_mult2 = input.float(8.0, "Multi", inline="0.1",group=string_outside_group)
+
+const int ATR_LENGTH2 = 10
+const bool EXP2 = true
+const string BANDS_STYLE2 = "Range"
+
+string_alert_group = "=== Alerts ==="
+bool_inside_alert = input.bool(true, title="Alert for inside Band Touch", group=string_alert_group)
+bool_outside_alert = input.bool(true, title="Alert for Outside Band Touch", group=string_alert_group)
+
+string_old_group = "=== Show Old Signals ==="
+bool_inside_old = input.bool(true, title="Show where Alerts triggered for Inside touches", group=string_old_group)
+bool_outside_old = input.bool(true, title="Show where Alerts triggered for Outside touches", group=string_old_group)
+
+string_div_group = "=== Divergence ==="
+bool_show_div = input.bool(true, title="Show Divergence", group=string_div_group, inline="0")
+color_div_line = input.color(color.black, title="Colour", group=string_div_group, inline="0")
+int_rsi_length = input.int(14, title="RSI Length", group=string_div_group, inline="1")
+bool_show_rsi_val = input.bool(false, title="Show RSI Values", group=string_div_group, inline="1")
+
+string_grad_group = "=== Band Gradients ==="
+bool_band_grad = input.bool(true, title="Band Gradients", group=string_grad_group, inline="1")
+color_band_bull = input.color(#00E600, title="", group=string_grad_group, inline="1")
+color_band_bear = input.color(#FF0000, title="", group=string_grad_group, inline="1")
+
+string_rsi_candle_group = "=== RSI Candle Color ==="
+bool_use_rsi_candle = input.bool(true, title="启用RSI超买超卖K线颜色", group=string_rsi_candle_group, inline="0")
+int_overbought = input.int(70, "超买阈值", minval=50, maxval=100, group=string_rsi_candle_group, inline="1")
+int_oversold = input.int(30, "超卖阈值", minval=0, maxval=50, group=string_rsi_candle_group, inline="1")
+color_overbought = input.color(color.red, "超买颜色", group=string_rsi_candle_group, inline="2")
+color_oversold = input.color(color.green, "超卖颜色", group=string_rsi_candle_group, inline="2")
+//#endregion
+
+//#region Functions
+float_esma(float_source, int_length, bool_exp) => bool_exp ? ta.ema(float_source, int_length) : ta.sma(float_source, int_length)
+//#endregion
+
+//#region EMA Calculations
+float_ema21 = ta.ema(close, 21)
+float_ema55 = ta.ema(close, 55)
+float_ema100 = ta.ema(close, 100)
+float_ema200 = ta.ema(close, 200)
+//#endregion
+
+//#region KCB Calculations
+float_ma = float_esma(float_src2, int_length2, EXP2)
+
+// Inside Band Calc
+float_rangema1 = BANDS_STYLE1 == "True Range" ? ta.tr(true) : BANDS_STYLE1 == "Average True Range" ? ta.atr(ATR_LENGTH1) : ta.rma(high - low, int_length1)
+float_upper1 = float_ma + float_rangema1 * float_mult1
+float_lower1 = float_ma - float_rangema1 * float_mult1
+
+// Outside Band Calc
+float_rangema2 = BANDS_STYLE2 == "True Range" ? ta.tr(true) : BANDS_STYLE2 == "Average True Range" ? ta.atr(ATR_LENGTH2) : ta.rma(high - low, int_length2)
+float_upper2 = float_ma + float_rangema2 * float_mult2
+float_lower2 = float_ma - float_rangema2 * float_mult2
+
+// Signals
+bool_inside_touch = ta.crossunder(low, float_lower1) or ta.crossover(high, float_upper1)
+bool_outside_touch = ta.crossunder(low, float_lower2) or ta.crossover(high, float_upper2)
+
+// Colour Calculation
+int_gradient_up_sig = ta.barssince(close < float_ma)
+int_gradient_lo_sig = ta.barssince(close > float_ma)
+
+color_gradient_up = bool_band_grad ? color.from_gradient(int_gradient_up_sig, 0, 250, color_outside, color_band_bear) : color_outside
+color_gradient_lo = bool_band_grad ? color.from_gradient(int_gradient_lo_sig, 0, 250, color_outside, color_band_bull) : color_outside
+//#endregion
+
+//#region RSI Calculation
+float_rsi = ta.rsi(close, int_rsi_length)
+color_candle = bool_use_rsi_candle ? (float_rsi >= int_overbought ? color_overbought : float_rsi <= int_oversold ? color_oversold : na) : na
+barcolor(color_candle)
+//#endregion
+
+//#region Plots
+// Plot EMA lines
+plot(bar_index > last_bar_index - 30 ? float_ema21 : na, color=color_ema21, title="EMA21", linewidth=1)
+plot(bar_index > last_bar_index - 30 ? float_ema55 : na, color=color_ema55, title="EMA55", linewidth=1)
+plot(bar_index > last_bar_index - 30 ? float_ema100 : na, color=color_ema100, title="EMA100", linewidth=1)
+plot(bar_index > last_bar_index - 30 ? float_ema200 : na, color=color_ema200, title="EMA200", linewidth=1)
+
+// Add EMA labels
+if bar_index > last_bar_index - 30
+    if barstate.islast
+        label.new(bar_index, float_ema21, text="EMA21: " + str.tostring(float_ema21, "#.##"), color=na, textcolor=color.new(color_ema21, 20), style=label.style_label_right, size=size.small)
+        label.new(bar_index, float_ema55, text="EMA55: " + str.tostring(float_ema55, "#.##"), color=na, textcolor=color.new(color_ema55, 20), style=label.style_label_right, size=size.small)
+        label.new(bar_index, float_ema100, text="EMA100: " + str.tostring(float_ema100, "#.##"), color=na, textcolor=color.new(color_ema100, 20), style=label.style_label_right, size=size.small)
+        label.new(bar_index, float_ema200, text="EMA200: " + str.tostring(float_ema200, "#.##"), color=na, textcolor=color.new(color_ema200, 20), style=label.style_label_right, size=size.small)
+
+// Plot KCB
+plot(float_ma, color=color.navy, title="Basis")
+//Inside Band Plots and fills
+float_u1 = plot(bool_on1 ? float_upper1 : na, color=color_inside, title="Upper")
+float_l1 = plot(bool_on1 ? float_lower1 : na, color=color_inside, title="Lower")
+
+fill(float_u1, float_l1, color=color_inside, title="Background")
+
+//Outside Band Plots and Fills
+float_u2 = plot(bool_on2 ? float_upper2 : na, color=color_outside, title="Outside Upper")
+float_l2 = plot(bool_on2 ? float_lower2 : na, color=color_outside, title="Outside Lower")
+
+fill(float_l1, float_l2, color=color_gradient_lo, title="Outside Lower Background")
+fill(float_u1, float_u2, color=color_gradient_up, title="Outside Upper Background")
+
+//Signal Plots
+const color LOW_COL = #00E600
+const color HIGH_COL = #FF0000
+
+plotshape(bool_inside_old ? ta.crossunder(low, float_lower1) : false, location=location.belowbar, color=LOW_COL, style=shape.triangleup)
+plotshape(bool_outside_old ? ta.crossunder(low, float_lower2) : false, location=location.belowbar, color=LOW_COL, style=shape.triangleup)
+
+plotshape(bool_inside_old ? ta.crossover(high, float_upper1) : false, location=location.abovebar, color=HIGH_COL, style=shape.triangledown)
+plotshape(bool_outside_old ? ta.crossover(high, float_upper2) : false, location=location.abovebar, color=HIGH_COL, style=shape.triangledown)
+//#endregion
+
+//#region Alerts
+if bool_inside_touch
+    string_inside_msg = ta.crossunder(low, float_lower1) ? "Inside band Low Touch on " + str.tostring(syminfo.ticker) : "Inside band High Touch on " + str.tostring(syminfo.ticker) 
+    alert(string_inside_msg, alert.freq_once_per_bar)
+if bool_outside_touch
+    string_outside_msg = ta.crossunder(low, float_lower2) ? "Outside band Low Touch on " + str.tostring(syminfo.ticker) : "Outside band High Touch on " + str.tostring(syminfo.ticker) 
+    alert(string_outside_msg, alert.freq_once_per_bar)
+//#endregion
+
+//#region Divergence
+const int OFFSET = 2
+float_rsi_low = ta.pivotlow(float_rsi, 3, OFFSET)
+float_price_low = ta.pivotlow(close, 3, OFFSET)
+float_rsi_high = ta.pivothigh(float_rsi, 3, OFFSET)
+float_price_high = ta.pivothigh(close, 3, OFFSET)
+
+//Low Arrays
+var float[] float_rsi_recent_low = array.new_float()
+var float[] float_price_recent_low = array.new_float()
+var int[] int_rsi_recent_low_i = array.new_int()
+var int[] int_price_recent_low_i = array.new_int()
+
+//High Arrays
+var float[] float_rsi_recent_high = array.new_float()
+var float[] float_price_recent_high = array.new_float()
+var int[] int_rsi_recent_high_i = array.new_int()
+var int[] int_price_recent_high_i = array.new_int()
+
+if not na(float_price_low)
+    array.unshift(float_price_recent_low, float_price_low)
+    array.unshift(int_price_recent_low_i, bar_index-OFFSET)
+    array.unshift(float_rsi_recent_low, float_rsi_low)
+    array.unshift(int_rsi_recent_low_i, bar_index-OFFSET)
+
+if not na(float_price_high)
+    array.unshift(float_price_recent_high, float_price_high)
+    array.unshift(int_price_recent_high_i, bar_index-OFFSET)
+    array.unshift(float_rsi_recent_high, float_rsi_high)
+    array.unshift(int_rsi_recent_high_i, bar_index-OFFSET)
+
+div(float[] osc_array, float[] price_array, int[] index_array, string direction) =>
+    if array.size(osc_array) > 1 and array.size(price_array) > 1
+        bool_bull_osc_sig = array.get(osc_array, 0) > array.get(osc_array, 1)
+        bool_bull_price_sig = array.get(price_array, 0) < array.get(price_array, 1)
+        bool_bear_osc_sig = array.get(osc_array, 0) < array.get(osc_array, 1)
+        bool_bear_price_sig = array.get(price_array, 0) > array.get(price_array, 1)
+        
+        bool_sig = direction == "Bull" ? bool_bull_osc_sig and bool_bull_price_sig : bool_bear_osc_sig and bool_bear_price_sig
+
+        if bool_sig
+            int_x1 = array.get(index_array, 1)
+            int_x2 = array.get(index_array, 0)
+            float_y1 = array.get(price_array, 1)
+            float_y2 = array.get(price_array, 0)
+            line.new(int_x1, float_y1, int_x2, float_y2, color=color_div_line)
+
+            if bool_show_rsi_val
+                label_style = direction == "Bull" ? label.style_label_up : label.style_label_down
+                int_label_x1 = array.get(index_array, 1)
+                int_label_x2 = array.get(index_array, 0)
+                label.new(int_label_x1, float_y1, text=str.tostring(math.round(array.get(osc_array, 1), 2)), style=label_style, color=color.new(#FFFFFF, 0), textcolor=color.black)
+                label.new(int_label_x2, float_y2, text=str.tostring(math.round(array.get(osc_array, 0), 2)), style=label_style, color=color.new(#FFFFFF, 0), textcolor=color.black)
+
+if not na(float_price_low) and bool_show_div
+    div(float_rsi_recent_low, float_price_recent_low, int_price_recent_low_i, "Bull")
+if not na(float_price_high) and bool_show_div
+    div(float_rsi_recent_high, float_price_recent_high, int_price_recent_high_i, "Bear")
+//#endregion

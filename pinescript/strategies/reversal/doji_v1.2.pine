@@ -1,0 +1,71 @@
+// ⌘ SUMMARY:
+// Type: strategy
+// Purpose: Simplified reversal strategy for Backtrader conversion.
+// Key Inputs: Daily Trend Filter, MA Trigger settings, SL/TP settings.
+// Strategy Logic: Combines a daily trend filter with a fast/slow EMA entry trigger.
+// Version: 1.2 (Primed for Backtrader)
+
+//@version=5
+strategy(title="Doji Ashi v1.2 for Conversion", overlay=true, initial_capital=500, default_qty_type=strategy.percent_of_equity, default_qty_value=20, margin_long=25, margin_short=25, commission_type=strategy.commission.percent, commission_value=0.02)
+
+// === MODE SELECTOR === //
+trade_direction = input.string("Both", options=["Long", "Short", "Both"], title="Trade Direction", tooltip="Choose 'Long' for long trades only, 'Short' for short trades only, or 'Both' for both directions.")
+
+// === INPUT SETTINGS === //
+enable_daily_trend_filter_input = input.bool(true, "Use Daily Trend Filter (Above SMAs)", tooltip="When enabled, trades are filtered based on daily trend strength determined by the 20, 50, and 200 SMAs.")
+trend_mode = input.string("Strict", options=["Strict", "Flexible"], title="Daily Trend Filter Mode", tooltip="'Strict' requires all 3 SMAs aligned. 'Flexible' allows for 2 out of 3 to confirm trend direction.")
+enable_entry_trigger = input.bool(true, "Use Entry Trigger", tooltip="Requires a momentum trigger using 3/8 MA crossover logic to enter trades.")
+entry_mode = input.string("Above/Below", options=["Cross", "Above/Below"], title="3/8 MA Entry Mode", tooltip="'Cross' triggers signals on 3/8 MA crossover. 'Above/Below' keeps signals active while the fast MA remains above/below the slow MA.")
+
+// === SL/TP SETTINGS === //
+atr_length = input.int(14, "ATR Period", minval=1, tooltip="Period for Average True Range calculation used in SL/TP placement.")
+atr_multiplier = input.float(1.5, "ATR Multiplier", step=0.1, tooltip="Multiplier for ATR to determine Stop Loss distance. Higher values = wider stops.")
+risk_reward_ratio = input.float(2.0, "Risk:Reward Ratio", step=0.1, tooltip="Take Profit distance as a multiple of Stop Loss distance. 2.0 means TP is 2x the SL distance.")
+
+// === DAILY TREND FILTER === //
+enable_daily_trend_filter = enable_daily_trend_filter_input
+daily_close = request.security(syminfo.tickerid, "D", close, lookahead=barmerge.lookahead_on)
+daily_sma_20 = request.security(syminfo.tickerid, "D", ta.sma(close, 20), lookahead=barmerge.lookahead_on)
+daily_sma_50 = request.security(syminfo.tickerid, "D", ta.sma(close, 50), lookahead=barmerge.lookahead_on)
+daily_sma_200 = request.security(syminfo.tickerid, "D", ta.sma(close, 200), lookahead=barmerge.lookahead_on)
+
+sma_20_pass = daily_close > daily_sma_20
+sma_50_pass = daily_close > daily_sma_50
+sma_200_pass = daily_close > daily_sma_200
+sma_pass_count = (sma_20_pass ? 1 : 0) + (sma_50_pass ? 1 : 0) + (sma_200_pass ? 1 : 0)
+
+daily_uptrend = (trend_mode == "Strict" and sma_pass_count == 3) or (trend_mode == "Flexible" and sma_pass_count >= 2)
+daily_downtrend = (trend_mode == "Strict" and sma_pass_count == 0) or (trend_mode == "Flexible" and sma_pass_count <= 1)
+
+// === ENTRY TRIGGER (3/8 MA CROSS or STATE) - Hardcoded to EMA === //
+ma_3 = ta.ema(close, 3)
+ma_8 = ta.ema(close, 8)
+
+ema_cross_up = entry_mode == "Cross" ? ta.crossover(ma_3, ma_8) : ma_3 > ma_8
+ema_cross_down = entry_mode == "Cross" ? ta.crossunder(ma_3, ma_8) : ma_3 < ma_8
+
+// === LONG SETUP CONDITIONS === //
+long_conditions = (not enable_daily_trend_filter or daily_uptrend) and (not enable_entry_trigger or ema_cross_up)
+
+// === SHORT SETUP CONDITIONS === //
+short_conditions = (not enable_daily_trend_filter or daily_downtrend) and (not enable_entry_trigger or ema_cross_down)
+
+// === SL/TP CALCULATIONS === //
+atr_value = ta.atr(atr_length)
+
+// For long positions
+long_sl = close - atr_value * atr_multiplier
+long_tp = close + (close - long_sl) * risk_reward_ratio
+
+// For short positions  
+short_sl = close + atr_value * atr_multiplier
+short_tp = close - (short_sl - close) * risk_reward_ratio
+
+// === STRATEGY EXECUTION === //
+if (long_conditions and (trade_direction == "Long" or trade_direction == "Both"))
+    strategy.entry("Long", strategy.long)
+    strategy.exit("Exit Long", "Long", limit=long_tp, stop=long_sl)
+
+if (short_conditions and (trade_direction == "Short" or trade_direction == "Both"))
+    strategy.entry("Short", strategy.short)
+    strategy.exit("Exit Short", "Short", limit=short_tp, stop=short_sl)
