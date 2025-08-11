@@ -320,7 +320,7 @@ def main():
         sys.exit(2)
 
     # Define directory structure (flatten to backtester/data)
-    base_dir = os.path.abspath(os.path.join('claudecode', 'backtester', 'data', args.symbol, args.interval))
+    base_dir = os.path.abspath(os.path.join('backtester', 'data', args.symbol, args.interval))
     zips_dir = os.path.join(base_dir, 'zips')
     csv_dir = os.path.join(base_dir, 'csv')
     ensure_directory(zips_dir)
