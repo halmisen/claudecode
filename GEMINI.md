@@ -24,7 +24,7 @@ The `backtester/` directory houses the Python-based backtesting framework, utili
 -   Output: `plots/doji_ashi_v5_bokeh_*.html`
 
 **Legacy Approach (V4)** - Plotly (deprecated):
--   `viz/`: Contains deprecated Plotly visualization modules
+-   `backtester/utils/`: Contains visualization and utility modules
 -   Complex data collection with performance impact
 -   Maintained for historical reference only
 
@@ -37,7 +37,7 @@ The `docs/` directory provides extensive documentation covering various aspects 
 -   `docs/development-workflow.md`: Outlines the general development process, file operations, and Git workflow.
 
 ### 🛠️ Utilities
--   `download_data.py`: A Python script for downloading historical market data from Binance.
+-   `scripts/download_data.py`: A Python script for downloading historical market data from Binance.
 -   `requirements.txt`: Top-level Python dependencies for general project utilities and analysis.
 -   `requirements-local.txt`: For local-only dependencies that should not be committed to version control (e.g., locally built wheels).
 
@@ -73,7 +73,7 @@ This project uses Python and relies on virtual environments for dependency manag
 ### Data Acquisition
 Historical market data can be downloaded using the provided Python script:
 ```bash
-python download_data.py
+python scripts/download_data.py
 ```
 This script will download BTCUSDT data for 4-hour and 1-day intervals into `backtester/data/BTCUSDT/`.
 
@@ -101,7 +101,8 @@ V4 Plotly-based visualization (maintained for reference only):
 python backtester/run_doji_ashi_strategy_v4.py --data [file] --market_type crypto --enable_plotly
 
 # Standalone plotting utility
-python examples/run_csv_and_plot.py --csv path/to/ohlcv.csv --out reports/plot.html
+# python examples/run_csv_and_plot.py --csv path/to/ohlcv.csv --out reports/plot.html
+# Note: examples/run_csv_and_plot.py has been removed - use v5 strategy runner instead
 ```
 ```
 

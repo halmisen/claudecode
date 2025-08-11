@@ -17,7 +17,7 @@
 
 ```bash
 # 激活虚拟环境 (Windows)
-backtester\venv\Scripts\activate
+claudecode\venv\Scripts\activate
 
 # 安装V5核心依赖
 pip install backtrader pandas numpy backtrader-plotting
@@ -85,8 +85,9 @@ claudecode/
 │   ├── README.md       # 文档索引
 │   ├── strategies/     # 策略指南
 │   └── *.md           # 开发指南
-├── examples/          # 示例脚本
-├── viz/              # 可视化工具
+├── examples/          # 示例脚本  
+├── scripts/          # 数据下载脚本
+├── backtester/utils/ # 可视化工具
 └── venv/             # Python 虚拟环境
 ```
 

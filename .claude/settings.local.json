@@ -40,7 +40,12 @@
       "Bash(backtestervenvScriptspython.exe --version)",
       "Bash(backtester/venv/Scripts/python.exe --version)",
       "Bash(backtester/venv/Scripts/python.exe:*)",
-      "Bash(backtester/venv/Scripts/pip.exe install backtrader-plotting)"
+      "Bash(backtester/venv/Scripts/pip.exe install backtrader-plotting)",
+      "Bash(cat:*)",
+      "Bash(git ls-tree:*)",
+      "Bash(cp:*)",
+      "Bash(mkdir:*)",
+      "Bash(git add:*)"
     ],
     "deny": []
   }
