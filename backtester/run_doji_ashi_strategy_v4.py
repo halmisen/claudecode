@@ -287,7 +287,7 @@ Examples:
     # 策略参数
     parser.add_argument('--market_type', type=str, default='crypto', choices=['stocks', 'crypto'],
                        help='Market type preset (default: crypto)')
-    parser.add_argument('--direction', type=str, default='both', choices=['long', 'short', 'both'],
+    parser.add_argument('--direction', type=str, default='long', choices=['long', 'short', 'both'],
                        help='Trade direction (default: both)')
     parser.add_argument('--filters', type=str, default='daily,trigger',
                        help='Comma-separated list of filters: daily,trigger,market,rs,volume,vwap,time')
@@ -372,7 +372,7 @@ Examples:
         
         # 加载主要数据
         base_dir = Path(__file__).resolve().parent
-        main_data_path = Path(args.data) if Path(args.data).is_absolute() else base_dir / args.data
+        main_data_path = Path(args.data) if Path(args.data).is_absolute() else Path(args.data)
         df_main = load_csv_data(main_data_path, "Main")
         
         # 创建主要数据feed
@@ -386,7 +386,7 @@ Examples:
         
         # 创建日线数据feed
         if args.daily_data:
-            daily_data_path = Path(args.daily_data) if Path(args.daily_data).is_absolute() else base_dir / args.daily_data
+            daily_data_path = Path(args.daily_data) if Path(args.daily_data).is_absolute() else Path(args.daily_data)
             df_daily = load_csv_data(daily_data_path, "Daily")
             daily_feed = bt.feeds.PandasData(dataname=df_daily, name="daily")
             cerebro.adddata(daily_feed)
@@ -395,7 +395,7 @@ Examples:
         
         # 创建市场数据feed（如果提供）
         if args.market_data:
-            market_data_path = Path(args.market_data) if Path(args.market_data).is_absolute() else base_dir / args.market_data
+            market_data_path = Path(args.market_data) if Path(args.market_data).is_absolute() else Path(args.market_data)
             df_market = load_csv_data(market_data_path, "Market")
             market_feed = bt.feeds.PandasData(dataname=df_market, name="market")
             cerebro.adddata(market_feed)
@@ -433,8 +433,8 @@ Examples:
             plot_theme=args.plot_theme,
             max_plot_points=args.max_plot_points,
             
-            # 其他设置
-            use_time_exit=True,
+            # 其他设置 - 按用户要求只使用ATR退出
+            use_time_exit=False,  # 禁用时间退出
             max_bars_in_trade=100,
             cooldown_bars=10,
             warmup_daily=200,

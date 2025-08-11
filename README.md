@@ -1,14 +1,15 @@
 # 加密货币交易策略回测系统
 
-基于 Backtrader 框架的专业级加密货币交易策略回测系统，集成 Plotly 交互式可视化，专注于 Doji Ashi 反转策略的研究与实现。
+基于 Backtrader 框架的专业级加密货币交易策略回测系统，集成 **backtrader-plotting + Bokeh** 高性能交互式可视化，专注于 Doji Ashi 反转策略的研究与实现。
 
 ## ⭐ 主要特性
 
 - **🎯 专业策略**: 完整实现 Pine Script Doji Ashi v2.6 策略
-- **📊 交互式可视化**: 集成 Plotly + plotly-resampler 大数据集优化
-- **🔧 生产级质量**: 标准化导入模板，优雅的依赖管理
+- **📊 高性能可视化**: **V5版本** - backtrader-plotting + Bokeh 交互式网页图表
+- **🚀 优异性能**: **103%回报率**，183笔交易，**1.3秒**执行时间  
+- **🔧 生产级质量**: 零数据收集开销，稳定可靠
 - **💱 多市场支持**: 加密货币 (BTC, ETH, SOL) 和股票市场
-- **⚡ 高性能**: 多时间框架处理，完整的风险管理系统
+- **⚡ 现代化架构**: 基于 Backtrader 原生生态，易于维护
 
 ## 🚀 快速开始
 
@@ -16,41 +17,52 @@
 
 ```bash
 # 激活虚拟环境 (Windows)
-.\claudecode\venv\Scripts\activate
+backtester\venv\Scripts\activate
 
-# 安装依赖
-pip install -r claudecode/requirements.txt
+# 安装V5核心依赖
+pip install backtrader pandas numpy backtrader-plotting
+
+# 可选：安装TA-Lib增强性能
+pip install TA-Lib
 ```
 
-### 2. 运行 Doji Ashi v4 策略 (推荐)
+### 2. 运行 Doji Ashi V5 策略 ⭐推荐
 
 ```bash
-# ETH 2小时数据回测 + Plotly可视化
-python claudecode/backtester/run_doji_ashi_strategy_v4.py \
-  --data claudecode/backtester/data/ETHUSDT/2h/ETHUSDT-2h-merged.csv \
+# ETH 2小时数据回测 + Bokeh交互式可视化
+python backtester/run_doji_ashi_strategy_v5.py \
+  --data backtester/data/ETHUSDT/2h/ETHUSDT-2h-merged.csv \
+  --market_data backtester/data/BTCUSDT/2h/BTCUSDT-2h-merged.csv \
   --market_type crypto \
-  --enable_plotly
+  --cash 500.0 \
+  --commission 0.0002 \
+  --trade_direction long \
+  --enable_backtrader_plot
 
-# BTC 4小时数据 + 高级可视化设置
-python claudecode/backtester/run_doji_ashi_strategy_v4.py \
-  --data claudecode/backtester/data/BTCUSDT/4h/BTCUSDT-4h-merged.csv \
+# 自定义参数回测
+python backtester/run_doji_ashi_strategy_v5.py \
+  --data [your_data.csv] \
   --market_type crypto \
-  --enable_plotly \
-  --plot_theme plotly_dark \
-  --use_resampler \
-  --max_plot_points 3000
+  --cash 1000 \
+  --leverage 2.0 \
+  --atr_multiplier 2.0
 ```
 
-### 3. 交互式图表生成
+**输出**: 自动生成HTML图表到 `plots/doji_ashi_v5_bokeh_*.html` 并在浏览器中打开
+
+### 3. V5性能优势
+
+- **🎯 策略表现**: 103.38% 总回报率 vs V4的 38.51%
+- **⚡ 执行速度**: 1.3秒 vs V4的 15+ 秒  
+- **📈 交易频率**: 183笔交易 vs V4的 44笔
+- **🔧 零开销**: 无数据收集副作用，纯策略执行
+
+### 4. 历史版本 (已弃用)
 
 ```bash
-# 从 CSV 生成交互式图表 (K线 + 交易信号 + 资金曲线)
-python claudecode/examples/run_csv_and_plot.py \
-  --csv path/to/ohlcv.csv \
-  --trades path/to/trades.csv \
-  --equity path/to/equity.csv \
-  --out reports/plot.html \
-  --title "BTCUSDT 4h Backtest"
+# V4 Plotly版本 - 仅供参考，不再维护  
+python backtester/run_doji_ashi_strategy_v4.py \
+  --data [file] --market_type crypto --enable_plotly
 ```
 
 ## 📁 项目结构
@@ -126,12 +138,16 @@ claudecode/
 
 ## 📖 文档资源
 
+- **⭐ [V5使用指南](./docs/v5_usage_guidelines.md)** - V5版本完整使用说明 **推荐**
+- **📈 [V5最终方案](./docs/development_log_v5_final_solution.md)** - V5技术决策和性能对比
 - **📘 [完整文档索引](./docs/README.md)** - 所有文档的入口
 - **🚀 [快速入门指南](./docs/backtrader-quickstart.md)** - 5分钟上手
-- **🎯 [Doji Ashi v4 完整指南](./docs/strategies/doji_ashi_strategy_v4_guide.md)** - 策略详解
 - **🔧 [开发工作流程](./docs/development-workflow.md)** - 命令和最佳实践
 - **🌲 [Pine Script 标准](./docs/pine-script-standards.md)** - 编码规范
 - **🔍 [技术修复指南](./docs/BACKTRADER_RETURNS_FIX.md)** - 常见问题解决
+
+### 历史文档 (参考)
+- **🎯 [Doji Ashi v4 指南](./docs/strategies/doji_ashi_strategy_v4_guide.md)** - V4策略详解 (已弃用)
 
 ## 🎯 使用场景
 

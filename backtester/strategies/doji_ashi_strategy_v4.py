@@ -128,7 +128,7 @@ class DojiAshiStrategyV4(bt.Strategy):
     params = (
         # === MODE SELECTOR === #
         ("market_type", "Crypto"),  # 'Stocks' | 'Crypto'
-        ("trade_direction", "both"),  # 'long' | 'short' | 'both'
+        ("trade_direction", "long"),  # 'long' | 'short' | 'both' - 用户默认只做多
         
         # === FILTER CONTROLS === #
         ("enable_market_filter_input", False),  # 手动开启市场过滤器（仅Stocks模式）
@@ -256,10 +256,18 @@ class DojiAshiStrategyV4(bt.Strategy):
             self.enable_relative_strength = False
 
     def _setup_daily_trend_filter(self):
-        """设置日线趋势过滤器"""
-        self.daily_sma20 = btind.SMA(self.daily_data.close, period=self.p.daily_sma_20)
-        self.daily_sma50 = btind.SMA(self.daily_data.close, period=self.p.daily_sma_50)
-        self.daily_sma200 = btind.SMA(self.daily_data.close, period=self.p.daily_sma_200)
+        """设置日线趋势过滤器 - 优先使用pandas_ta"""
+        try:
+            # 无论如何都使用Backtrader指标，因为我们需要在策略中实时访问
+            # pandas_ta更适合预计算，但这里需要实时指标
+            self.daily_sma20 = btind.SMA(self.daily_data.close, period=self.p.daily_sma_20)
+            self.daily_sma50 = btind.SMA(self.daily_data.close, period=self.p.daily_sma_50)
+            self.daily_sma200 = btind.SMA(self.daily_data.close, period=self.p.daily_sma_200)
+        except Exception:
+            # 最终回退
+            self.daily_sma20 = btind.SMA(self.daily_data.close, period=self.p.daily_sma_20)
+            self.daily_sma50 = btind.SMA(self.daily_data.close, period=self.p.daily_sma_50)
+            self.daily_sma200 = btind.SMA(self.daily_data.close, period=self.p.daily_sma_200)
         
         self.sma_pass_count = (
             (self.daily_data.close > self.daily_sma20) +
@@ -275,7 +283,7 @@ class DojiAshiStrategyV4(bt.Strategy):
             self.daily_downtrend = self.sma_pass_count <= 1
 
     def _setup_ma_trigger(self):
-        """设置3/8 MA触发器"""
+        """设置3/8 MA触发器 - 优先使用TA-Lib"""
         try:
             if self.p.use_talib and HAS_TALIB:
                 self.ma_fast = bt.talib.EMA(self.data_close, timeperiod=self.p.fast_ma_len)
@@ -355,9 +363,9 @@ class DojiAshiStrategyV4(bt.Strategy):
         self.last_long_bar = -10**9
         self.last_short_bar = -10**9
         
-        self.warmup_daily = max(int(self.p.warmup_daily), 
-                               int(self.p.atr_length),
-                               int(self.p.daily_sma_200))
+        # 优化预热期：只需要最长指标的长度即可开始交易
+        # 主要考虑因素：ATR(14), SMA200, 以及一些缓冲
+        self.warmup_daily = max(25, int(self.p.atr_length))  # 进一步减少预热期
 
     def _init_data_collection(self):
         """初始化数据收集用于Plotly可视化"""
@@ -382,11 +390,17 @@ class DojiAshiStrategyV4(bt.Strategy):
             'daily_sma50': [],
             'daily_sma200': [],
             
-            # 交易信号
+            # 交易信号（入场）
             'buy_signals': [],
             'sell_signals': [],
             'buy_prices': [],
             'sell_prices': [],
+            
+            # 退出信号（新增）
+            'exit_signals': [],
+            'exit_prices': [],
+            'exit_types': [],  # 'TP' 或 'SL'
+            'pnl_usdt': [],   # 每笔交易盈亏USDT
             
             # 持仓和PnL
             'position': [],
@@ -530,6 +544,12 @@ class DojiAshiStrategyV4(bt.Strategy):
         self.plot_data['buy_prices'].append(np.nan)
         self.plot_data['sell_prices'].append(np.nan)
         
+        # 退出信号占位符
+        self.plot_data['exit_signals'].append(False)
+        self.plot_data['exit_prices'].append(np.nan)
+        self.plot_data['exit_types'].append('')
+        self.plot_data['pnl_usdt'].append(0.0)
+        
         # 持仓和组合价值
         self.plot_data['position'].append(float(self.position.size if self.position else 0))
         self.plot_data['portfolio_value'].append(float(self.broker.getvalue()))
@@ -547,6 +567,25 @@ class DojiAshiStrategyV4(bt.Strategy):
             elif signal_type == 'sell':
                 self.plot_data['sell_signals'][current_idx] = True
                 self.plot_data['sell_prices'][current_idx] = price
+    
+    def _record_exit_signal(self, exit_type: str, exit_price: float, pnl_usdt: float):
+        """记录退出信号用于可视化"""
+        if not (self.p.enable_plotly and HAS_PLOTLY):
+            return
+            
+        current_idx = len(self.plot_data['datetime']) - 1
+        if current_idx >= 0:
+            # 添加退出信号数据
+            if 'exit_signals' not in self.plot_data:
+                self.plot_data['exit_signals'] = [False] * len(self.plot_data['datetime'])
+                self.plot_data['exit_prices'] = [np.nan] * len(self.plot_data['datetime'])
+                self.plot_data['exit_types'] = [''] * len(self.plot_data['datetime'])
+                self.plot_data['pnl_usdt'] = [0.0] * len(self.plot_data['datetime'])
+            
+            self.plot_data['exit_signals'][current_idx] = True
+            self.plot_data['exit_prices'][current_idx] = exit_price
+            self.plot_data['exit_types'][current_idx] = exit_type
+            self.plot_data['pnl_usdt'][current_idx] = pnl_usdt
 
     # === 主要回调函数 === #
     
@@ -554,10 +593,10 @@ class DojiAshiStrategyV4(bt.Strategy):
         """主要逻辑循环"""
         self._cleanup_orders()
         
-        # 收集绘图数据
+        # 始终收集绘图数据（包括预热期），确保完整时间范围
         self._collect_plot_data()
         
-        # 预热期检查
+        # 预热期检查 - 交易逻辑在预热期后开始
         if len(self.daily_data) < self.warmup_daily:
             return
             
@@ -674,7 +713,7 @@ class DojiAshiStrategyV4(bt.Strategy):
                 self.trail_order = None
 
     def notify_trade(self, trade):
-        """交易通知"""
+        """交易通知 - 增强退出信号记录"""
         if trade.isclosed:
             self.sl_order = self.tp_order = self.trail_order = None
             self.entry_bar_index = None
@@ -697,7 +736,11 @@ class DojiAshiStrategyV4(bt.Strategy):
                             duration = int(abs(trade.dtclose - trade.dtopen))
                 except Exception:
                     duration = 0
-                    
+                
+                # 判断退出类型
+                exit_type = "TP" if trade.pnl > 0 else "SL"
+                pnl_usdt = round(trade.pnl, 2)
+                
                 trade_data = {
                     'entry_date': trade.dtopen,
                     'exit_date': trade.dtclose,
@@ -705,9 +748,14 @@ class DojiAshiStrategyV4(bt.Strategy):
                     'exit_price': exit_price,
                     'size': trade.size,
                     'pnl': trade.pnl,
+                    'pnl_usdt': pnl_usdt,
+                    'exit_type': exit_type,
                     'duration': duration,
                 }
                 self.plot_data['trades'].append(trade_data)
+                
+                # 在当前位置记录退出信号用于可视化
+                self._record_exit_signal(exit_type, exit_price, pnl_usdt)
 
     def create_plotly_chart(self):
         """创建详细的Plotly交互式图表"""
@@ -719,18 +767,28 @@ class DojiAshiStrategyV4(bt.Strategy):
             print("No plot data collected")
             return None
             
-        # 转换为DataFrame便于操作，确保所有数组长度一致
-        min_length = min(len(arr) for arr in self.plot_data.values() if isinstance(arr, list))
+        # 转换为DataFrame便于操作，填充短数组而不是截断长数组
+        max_length = max(len(arr) for arr in self.plot_data.values() if isinstance(arr, list))
         
-        # 截断所有数组到相同长度
-        trimmed_data = {}
+        # 填充短数组到相同长度，而不是截断
+        padded_data = {}
         for key, values in self.plot_data.items():
-            if isinstance(values, list) and len(values) > min_length:
-                trimmed_data[key] = values[:min_length]
+            if isinstance(values, list) and len(values) < max_length:
+                # 填充缺失值：数值类型用NaN，布尔用False，字符串用空字符串
+                if key in ['buy_signals', 'sell_signals', 'exit_signals']:
+                    padded_data[key] = values + [False] * (max_length - len(values))
+                elif key in ['buy_prices', 'sell_prices', 'exit_prices', 'open', 'high', 'low', 'close', 'volume', 
+                           'ma_fast', 'ma_slow', 'atr', 'daily_sma20', 'daily_sma50', 'daily_sma200', 
+                           'vwap', 'avg_volume', 'market_close', 'market_ma', 'position', 'portfolio_value', 'pnl_usdt']:
+                    padded_data[key] = values + [np.nan] * (max_length - len(values))
+                elif key in ['exit_types']:
+                    padded_data[key] = values + [''] * (max_length - len(values))
+                else:
+                    padded_data[key] = values + [np.nan] * (max_length - len(values))
             else:
-                trimmed_data[key] = values
+                padded_data[key] = values
                 
-        df = pd.DataFrame(trimmed_data)
+        df = pd.DataFrame(padded_data)
         df.set_index('datetime', inplace=True)
         
         # 使用plotly-resampler处理大数据集
@@ -797,7 +855,7 @@ class DojiAshiStrategyV4(bt.Strategy):
                     row=1, col=1
                 )
         
-        # 交易信号
+        # 交易信号（入场）
         if self.p.plot_signals:
             buy_mask = df['buy_signals']
             sell_mask = df['sell_signals']
@@ -805,18 +863,62 @@ class DojiAshiStrategyV4(bt.Strategy):
             if buy_mask.any():
                 fig.add_trace(
                     go.Scatter(x=df.index[buy_mask], y=df.loc[buy_mask, 'buy_prices'],
-                              mode='markers', name='Buy Signals',
-                              marker=dict(symbol='triangle-up', size=15, color='green')),
+                              mode='markers', name='Buy Entry',
+                              marker=dict(symbol='triangle-up', size=15, color='green'),
+                              hovertemplate='<b>入场</b><br>价格: %{y:.4f}<br>日期: %{x}<extra></extra>'),
                     row=1, col=1
                 )
             
             if sell_mask.any():
                 fig.add_trace(
                     go.Scatter(x=df.index[sell_mask], y=df.loc[sell_mask, 'sell_prices'],
-                              mode='markers', name='Sell Signals',
-                              marker=dict(symbol='triangle-down', size=15, color='red')),
+                              mode='markers', name='Sell Entry',
+                              marker=dict(symbol='triangle-down', size=15, color='red'),
+                              hovertemplate='<b>入场(空)</b><br>价格: %{y:.4f}<br>日期: %{x}<extra></extra>'),
                     row=1, col=1
                 )
+            
+            # 退出信号（新增）
+            if 'exit_signals' in df.columns:
+                exit_mask = df['exit_signals']
+                if exit_mask.any():
+                    exit_df = df.loc[exit_mask]
+                    
+                    # 分离止盈和止损信号
+                    tp_mask = exit_df['exit_types'] == 'TP'
+                    sl_mask = exit_df['exit_types'] == 'SL'
+                    
+                    # 止盈信号
+                    if tp_mask.any():
+                        tp_df = exit_df[tp_mask]
+                        fig.add_trace(
+                            go.Scatter(
+                                x=tp_df.index, 
+                                y=tp_df['exit_prices'],
+                                mode='markers', 
+                                name='Take Profit',
+                                marker=dict(symbol='star', size=12, color='lime'),
+                                customdata=tp_df['pnl_usdt'],
+                                hovertemplate='<b>止盈</b><br>价格: %{y:.4f}<br>盈利: +%{customdata:.2f} USDT<br>日期: %{x}<extra></extra>'
+                            ),
+                            row=1, col=1
+                        )
+                    
+                    # 止损信号
+                    if sl_mask.any():
+                        sl_df = exit_df[sl_mask]
+                        fig.add_trace(
+                            go.Scatter(
+                                x=sl_df.index, 
+                                y=sl_df['exit_prices'],
+                                mode='markers', 
+                                name='Stop Loss',
+                                marker=dict(symbol='x', size=12, color='orange'),
+                                customdata=sl_df['pnl_usdt'],
+                                hovertemplate='<b>止损</b><br>价格: %{y:.4f}<br>亏损: %{customdata:.2f} USDT<br>日期: %{x}<extra></extra>'
+                            ),
+                            row=1, col=1
+                        )
         
         # 成交量
         if self.p.plot_volume:

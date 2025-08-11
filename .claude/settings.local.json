@@ -28,7 +28,19 @@
       "Bash(ls:*)",
       "Bash(dir docsarchive)",
       "Bash(dir:*)",
-      "WebFetch(domain:docs.anthropic.com)"
+      "WebFetch(domain:docs.anthropic.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(echo $HOME)",
+      "Bash(cd:*)",
+      "Bash(git clone:*)",
+      "Bash(move:*)",
+      "Bash(grep:*)",
+      "Bash(backtestervenvScriptsactivate)",
+      "Bash(backtestervenvScriptspython.exe --version)",
+      "Bash(backtester/venv/Scripts/python.exe --version)",
+      "Bash(backtester/venv/Scripts/python.exe:*)",
+      "Bash(backtester/venv/Scripts/pip.exe install backtrader-plotting)"
     ],
     "deny": []
   }

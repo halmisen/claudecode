@@ -11,14 +11,22 @@ Located primarily in the `pinescript/` directory, this section contains a librar
 
 ### 🐍 Python Backtesting
 The `backtester/` directory houses the Python-based backtesting framework, utilizing Backtrader.
--   `backtester/strategies/`: Contains Python implementations of trading strategies, including `doji_ashi_strategy_v2.py` which is a conversion from Pine Script.
+-   `backtester/strategies/`: Contains Python implementations of trading strategies, **featuring `doji_ashi_strategy_v5.py` as the main recommended strategy**
+-   `backtester/run_doji_ashi_strategy_v5.py`: Main runner script with Bokeh interactive visualization
 -   `backtester/data/`: Stores historical market data used for backtesting.
--   `backtester/requirements.txt`: Specifies Python dependencies for the backtesting environment.
+-   `backtester/venv/`: Virtual environment with optimized dependencies
 
-### 📈 Interactive Visualization
--   `viz/`: Contains visualization modules, starting with `plotly_bt.py` for creating interactive charts from backtest results.
--   `examples/`: Includes example scripts, such as `run_csv_and_plot.py`, demonstrating how to use the visualization tools.
--   `reports/`: Default output directory for generated plots and reports.
+### 📈 Interactive Visualization (Updated)
+**Current Approach (V5)** - backtrader-plotting + Bokeh:
+-   Native Backtrader visualization with zero performance overhead
+-   Automatic HTML generation for browser-based interactive charts
+-   Superior strategy performance (103% vs 38% returns)
+-   Output: `plots/doji_ashi_v5_bokeh_*.html`
+
+**Legacy Approach (V4)** - Plotly (deprecated):
+-   `viz/`: Contains deprecated Plotly visualization modules
+-   Complex data collection with performance impact
+-   Maintained for historical reference only
 
 ### 📚 Documentation
 The `docs/` directory provides extensive documentation covering various aspects of the project.
@@ -47,14 +55,19 @@ This project uses Python and relies on virtual environments for dependency manag
     source venv/bin/activate
     ```
 
-2.  **Install Dependencies**:
-    Install the core project dependencies:
+2.  **Install Dependencies** (V5 Recommended):
     ```bash
-    pip install -r requirements.txt
+    # Core dependencies for V5
+    pip install backtrader pandas numpy backtrader-plotting
+    
+    # Optional TA-Lib for enhanced performance
+    pip install TA-Lib
     ```
-    For special local dependencies (like a custom-built TA-Lib wheel):
+    
+    **Legacy dependencies** (V4 - deprecated):
     ```bash
-    pip install -r requirements-local.txt
+    pip install -r requirements.txt  # Contains plotly, plotly-resampler
+    pip install -r requirements-local.txt  # For custom wheels
     ```
 
 ### Data Acquisition
@@ -64,21 +77,32 @@ python download_data.py
 ```
 This script will download BTCUSDT data for 4-hour and 1-day intervals into `backtester/data/BTCUSDT/`.
 
-### Running Backtests
-Backtrader strategies are Python scripts that can be executed directly. For example, to run Doji Ashi v2:
+### Running Backtests (V5 Recommended)
+The main strategy uses optimized Backtrader execution with Bokeh visualization:
+
 ```bash
-python claudecode/backtester/run_doji_ashi_strategy_v2.py
+# Main V5 strategy with Bokeh interactive charts
+python backtester/run_doji_ashi_strategy_v5.py \
+  --data backtester/data/ETHUSDT/2h/ETHUSDT-2h-merged.csv \
+  --market_data backtester/data/BTCUSDT/2h/BTCUSDT-2h-merged.csv \
+  --market_type crypto \
+  --cash 500.0 \
+  --commission 0.0002 \
+  --trade_direction long \
+  --enable_backtrader_plot
 ```
-The `if __name__ == '__main__':` block within strategy files typically contains the setup for `cerebro` (Backtrader's engine) and initiates the backtest.
 
-### Generating Interactive Plots
-You can generate interactive Plotly charts from CSV files containing OHLCV data, and optionally include trade markers and equity curves.
+**Performance Results**: 103% returns, 183 trades, 1.3s execution time, HTML output to `plots/`
+
+### Legacy Interactive Plots (Deprecated)
+V4 Plotly-based visualization (maintained for reference only):
 ```bash
-# Basic plot from OHLCV data
-python examples/run_csv_and_plot.py --csv path/to/your/ohlcv.csv --out reports/my_plot.html
+# V4 with performance overhead
+python backtester/run_doji_ashi_strategy_v4.py --data [file] --market_type crypto --enable_plotly
 
-# Plot with trades and equity curve
-python examples/run_csv_and_plot.py --csv path/to/ohlcv.csv --trades path/to/trades.csv --equity path/to/equity.csv --out reports/full_backtest.html --title "My Strategy Backtest"
+# Standalone plotting utility
+python examples/run_csv_and_plot.py --csv path/to/ohlcv.csv --out reports/plot.html
+```
 ```
 
 ### Pine Script Usage
