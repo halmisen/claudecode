@@ -6,6 +6,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a professional cryptocurrency trading strategy backtesting system built on Backtrader with advanced Bokeh visualization. The codebase follows a modular architecture centered around translating Pine Script strategies to Python for rigorous backtesting and analysis.
 
+### 🖥️ Development Environment
+
+**Primary Platform**: Windows 11  
+**Shell Commands**: PowerShell/Windows CMD compatible  
+**Python Environment**: Windows-native Python with virtual environments
+
+⚠️ **Important**: All command-line instructions and automated scripts must use Windows-compatible syntax. Use PowerShell commands when cross-platform compatibility is needed.
+
 ### 📁 Current Project Structure
 
 ```

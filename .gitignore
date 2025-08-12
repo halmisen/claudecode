@@ -111,6 +111,11 @@ config/.env*
 # AI 对话记录和临时文档
 GEMINI.md
 
+# 临时生成的分析文件 (保留claude-task-YYMMDD.md格式)
+项目文件结构分析执行计划.md
+路径验证和Git建议报告.md
+temp_*.md
+
 # 废弃文件备份目录
 deprecated_*/
 
@@ -126,3 +131,8 @@ deprecated_*/
 # 已清理的临时目录
 temp_data/
 
+  
+# Prevent temporary test files  
+*_test*.txt  
+temp_*.txt  
+*temp_project_structure* 

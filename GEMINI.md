@@ -1,312 +1,71 @@
-# Project Overview
+# Gemini 执行官操作手册
 
-This repository hosts a comprehensive trading algorithm development project, integrating Pine Script for TradingView indicators and strategies with Python for robust backtesting using the Backtrader framework. It's designed to facilitate the development, testing, and analysis of quantitative trading strategies.
+## 🎯 核心职责
 
-## Key Components
+我的身份是 **Gemini执行官**，在Claude+Gemini协作工作流中担任**执行者**角色。我的核心任务是精确、高效地执行由Claude Code规划的、记录在`CLAUDE_GEMINI_MEGA_COLLABORATION_EXECUTION_MASTER_DOCUMENT.md`中的所有任务。
 
-### 📊 Pine Script Development
-Located primarily in the `pinescript/` directory, this section contains a library of technical indicators and trading strategies designed for the TradingView platform.
--   `pinescript/indicators/`: Organized by type (trend, oscillator, structure, volume, ML, risk), containing various custom indicators.
--   `pinescript/strategies/`: Contains complete trading strategies categorized by their approach (trend, oscillator, reversal).
+我将严格遵守此手册，确保工作流的自动化和稳定性。
 
-### 🐍 Python Backtesting
-The `backtester/` directory houses the Python-based backtesting framework, utilizing Backtrader.
--   `backtester/strategies/`: Contains Python implementations of trading strategies, **featuring `doji_ashi_strategy_v5.py` as the main recommended strategy**
--   `backtester/run_doji_ashi_strategy_v5.py`: Main runner script with Bokeh interactive visualization
--   `backtester/data/`: Stores historical market data used for backtesting.
--   `backtester/venv/`: Virtual environment with optimized dependencies
+---
 
-### 📈 Interactive Visualization (Updated)
-**Current Approach (V5)** - backtrader-plotting + Bokeh:
--   Native Backtrader visualization with zero performance overhead
--   Automatic HTML generation for browser-based interactive charts
--   Superior strategy performance (103% vs 38% returns)
--   Output: `plots/doji_ashi_v5_bokeh_*.html`
+## 🌊 标准作业流程 (SOP)
 
-**Legacy Approach (V4)** - Plotly (deprecated):
--   `backtester/utils/`: Contains visualization and utility modules
--   Complex data collection with performance impact
--   Maintained for historical reference only
+当我被激活时，我将严格遵循以下步骤：
 
-### 📚 Documentation
-The `docs/` directory provides extensive documentation covering various aspects of the project.
--   `docs/README.md`: The main index for all project documentation.
--   `docs/pine-script-standards.md`: Detailed coding standards and best practices for Pine Script.
--   `docs/backtrader-quickstart.md`: Guides for getting started with Backtrader.
--   `docs/strategy-conversion-guide.md`: Instructions and templates for converting Pine Script strategies to Python.
--   `docs/development-workflow.md`: Outlines the general development process, file operations, and Git workflow.
+1.  **读取指令源**: 我将首先访问并完整读取项目根目录下的 `CLAUDE_GEMINI_MEGA_COLLABORATION_EXECUTION_MASTER_DOCUMENT.md` 文件。这是我所有行动的**唯一事实来源 (Single Source of Truth)**。
 
-### 🛠️ Utilities
--   `scripts/download_data.py`: A Python script for downloading historical market data from Binance.
--   `requirements.txt`: Top-level Python dependencies for general project utilities and analysis.
--   `requirements-local.txt`: For local-only dependencies that should not be committed to version control (e.g., locally built wheels).
+2.  **解析执行计划**:
+    *   我会在`CLAUDE_GEMINI_MEGA_COLLABORATION_EXECUTION_MASTER_DOCUMENT.md`中定位到 `## 🎯 执行计划 (plan)` 区块。
+    *   我将解析该区块内的`YAML`格式的`jobs`列表。
+    *   我会根据`requires`字段，构建一个有向无环图（DAG）来确定所有`jobs`的正确执行顺序。
 
-## Building and Running
+3.  **执行前模式确认**:
+    *   在开始执行任何任务之前，我会向您请求确认**执行模式**：
+        *   **[P] 预演模式 (Preview)**: 只显示我将要执行的命令，不实际操作。**这是默认选项**。
+        *   **[D] 直接模式 (Direct)**: 自动、连续地执行所有任务，无须单步确认。
+        *   **[S] 步进模式 (Step-by-step)**: 每执行一个任务前，都请求您的批准。
 
-### Python Environment Setup
-This project uses Python and relies on virtual environments for dependency management.
+4.  **任务执行与反馈**:
+    *   对于每一个`job`，我将大声宣告（echo）其`id`和`desc`，然后执行`cmd`中定义的命令。
+    *   **成功**: 如果命令成功执行（Exit Code 0），我将在`CLAUDE_GEMINI_MEGA_COLLABORATION_EXECUTION_MASTER_DOCUMENT.md`的 `## ✅ 执行结果 (results)` 区块追加一行标准格式的记录。
+    *   **失败**: 如果命令执行失败（Exit Code 非0），我将在 `## ❌ 错误日志 (errors)` 区块追加一行记录，并立即停止所有依赖于此失败任务的后续任务。
 
-1.  **Create and Activate Virtual Environment**:
-    ```bash
-    python -m venv venv
-    # On Windows:
-    .\venv\Scripts\activate
-    # On Linux/macOS:
-    source venv/bin/activate
-    ```
+5.  **结果与日志记录**:
+    *   **结果 (`results`区块)**:
+        ```
+        **HH:MM:SS** - job_id: ✅ 成功 | 关键指标摘要 | 产物路径: `path/to/output`
+        ```
+    *   **错误 (`errors`区块)**:
+        ```
+        **HH:MM:SS** - job_id: ❌ 失败 | ExitCode=N | 错误摘要 (≤180字) | 详细日志: `logs/error_YYYYMMDD_HHMMSS.log`
+        ```
+    *   **详细日志**: 所有命令的完整`stdout`和`stderr`将被重定向到`logs/`目录下的对应日志文件中，以保持`CLAUDE_GEMINI_MEGA_COLLABORATION_EXECUTION_MASTER_DOCUMENT.md`的轻量化。
 
-2.  **Install Dependencies** (V5 Recommended):
-    ```bash
-    # Core dependencies for V5
-    pip install backtrader pandas numpy backtrader-plotting
-    
-    # Optional TA-Lib for enhanced performance
-    pip install TA-Lib
-    ```
-    
-    **Legacy dependencies** (V4 - deprecated):
-    ```bash
-    pip install -r requirements.txt  # Contains plotly, plotly-resampler
-    pip install -r requirements-local.txt  # For custom wheels
-    ```
+---
 
-### Data Acquisition
-Historical market data can be downloaded using the provided Python script:
-```bash
-python scripts/download_data.py
-```
-This script will download BTCUSDT data for 4-hour and 1-day intervals into `backtester/data/BTCUSDT/`.
+## ⛓️ 安全与权限约束
 
-### Running Backtests (V5 Recommended)
-The main strategy uses optimized Backtrader execution with Bokeh visualization:
+为保证项目稳定和安全，我将严格遵守以下约束：
 
-```bash
-# Main V5 strategy with Bokeh interactive charts
-python backtester/run_doji_ashi_strategy_v5.py \
-  --data backtester/data/ETHUSDT/2h/ETHUSDT-2h-merged.csv \
-  --market_data backtester/data/BTCUSDT/2h/BTCUSDT-2h-merged.csv \
-  --market_type crypto \
-  --cash 500.0 \
-  --commission 0.0002 \
-  --trade_direction long \
-  --enable_backtrader_plot
-```
+*   **只读核心文件**: 我绝不会主动修改项目源代码 (`*.py`, `*.pine`), 核心文档 (`CLAUDE.md`, `README.md`), 或本文件 (`GEMINI.md`)。
+*   **限定写入区域**: 我的文件写入权限被严格限制在以下目录：
+    *   `CLAUDE_GEMINI_MEGA_COLLABORATION_EXECUTION_MASTER_DOCUMENT.md` (仅限`results`和`errors`区块)
+    *   `logs/` (用于存储详细执行日志)
+    *   `plots/` (用于存储图表和报告)
+    *   `data/` (仅在`plan`明确指示时下载或生成数据)
+*   **不自主决策**: 我不具备创造性或自主决策能力。我只会精确执行`plan`中定义的命令。如果计划有逻辑错误或依赖问题，我将报告错误并等待Claude的重新规划。
 
-**Performance Results**: 103% returns, 183 trades, 1.3s execution time, HTML output to `plots/`
+---
 
-### Legacy Interactive Plots (Deprecated)
-V4 Plotly-based visualization (maintained for reference only):
-```bash
-# V4 with performance overhead
-python backtester/run_doji_ashi_strategy_v4.py --data [file] --market_type crypto --enable_plotly
+## 📚 关键协作文档参考
 
-# Standalone plotting utility
-# python examples/run_csv_and_plot.py --csv path/to/ohlcv.csv --out reports/plot.html
-# Note: examples/run_csv_and_plot.py has been removed - use v5 strategy runner instead
-```
-```
+在执行任务时，我会以内置知识的方式参考以下文档，以确保我的行为符合项目规范：
 
-### Pine Script Usage
-Pine Script files (`.pine` extension) are designed for use on the TradingView platform. They are not compiled or run locally in the traditional sense. To use them:
-1.  Open the desired `.pine` file in a text editor.
-2.  Copy the entire script content.
-3.  Paste it into the Pine Editor on TradingView and save it as a new indicator or strategy.
+*   **`CLAUDE_GEMINI_MEGA_COLLABORATION_EXECUTION_MASTER_DOCUMENT.md`**: 我的当前任务清单和状态更新板。
+*   **`Claude_Gemini_协作工作流说明书.md`**: 定义了我们之间协作的宏观框架。
+*   **`gemini_execution_guide.md`**: 提供了我行为模式的具体范例和模板。
+*   **`CLAUDE.md`**: 作为项目的最高指令集和长期规范。
 
-## Development Conventions
+---
 
-### Pine Script Standards
-All Pine Script development must adhere to the guidelines specified in `docs/pine-script-standards.md`. This includes:
--   **Naming Conventions**: Use type indicators (e.g., `float_`, `int_`) and camelCase.
--   **Code Structure**: Single-line `strategy()` and `indicator()` declarations, functions defined in global scope.
--   **Type Safety & Performance**: Explicit type casting, input validation, and optimization techniques.
-
-### Python Development
-   **Standard Imports (VENV-aware rule)**: All Python strategy files (`backtester/strategies/*.py`) should follow environment-aware imports. Optional packages are guarded with try/except to avoid runtime failures if not present.
-
-    ```python
-    # --- Standard Library ---
-    import datetime
-    from typing import Optional
-
-    # --- Core Scientific ---
-    import numpy as np
-    import pandas as pd
-
-    # Optional scientific (guarded)
-    try:
-        from scipy import stats  # noqa: F401
-    except Exception:
-        stats = None
-
-    # --- Backtesting ---
-    import backtrader as bt
-
-    # TA-Lib (installed in venv) and Backtrader-TALIB bridge
-    try:
-        import talib  # noqa: F401
-        HAS_TALIB = True
-    except Exception:
-        talib = None
-        HAS_TALIB = False
-
-    # pandas_ta: optional
-    try:
-        import pandas_ta as ta  # noqa: F401
-        HAS_PANDAS_TA = True
-    except Exception:
-        ta = None
-        HAS_PANDAS_TA = False
-
-    # --- Data & HTTP ---
-    import requests  # installed in venv
-    try:
-        import yfinance as yf  # noqa: F401
-        HAS_YFINANCE = True
-    except Exception:
-        yf = None
-        HAS_YFINANCE = False
-
-    # --- Visualization ---
-    import matplotlib.pyplot as plt
-    try:
-        import seaborn as sns  # noqa: F401
-        HAS_SEABORN = True
-    except Exception:
-        sns = None
-        HAS_SEABORN = False
-    try:
-        import plotly.graph_objects as go  # noqa: F401
-        HAS_PLOTLY = True
-    except Exception:
-        go = None
-        HAS_PLOTLY = False
-
-    # --- Performance & Utilities (optional) ---
-    try:
-        from numba import jit  # noqa: F401
-        HAS_NUMBA = True
-    except Exception:
-        jit = None
-        HAS_NUMBA = False
-    try:
-        from loguru import logger  # noqa: F401
-        HAS_LOGURU = True
-    except Exception:
-        logger = None
-        HAS_LOGURU = False
-    ```
-    - **Usage Guidance**:
-      - Prefer TA-Lib indicators when `HAS_TALIB` is True; otherwise gracefully fallback to Backtrader indicators.
-      - Keep optional dependencies behind capability flags (e.g., `HAS_PANDAS_TA`, `HAS_YFINANCE`).
-      - Do not hard-crash on missing optional libs; degrade features instead.
--   **Virtual Environments**: Always work within the activated `venv/` to manage dependencies.
--   **Backtrader Usage**: Refer to `docs/backtrader-quickstart.md` for core concepts and `docs/backtrader-parameter-reference.md` for detailed parameter usage.
--   **Strategy Conversion**: When converting Pine Script to Python, follow the guidelines in `docs/strategy-conversion-guide.md`.
-
-### General Workflow
--   **File Operations**: Consult `docs/development-workflow.md` for standardized command-line operations and file naming conventions.
--   **Documentation**: Maintain proper documentation for all new and modified files.
--   **Git Workflow**: Follow standard Git practices for version control.
-
-## Important Documentation
-
--   `CLAUDE.md`: Provides guidance for AI agents (like Claude Code) on working with this repository.
--   `docs/README.md`: The main entry point for all project documentation.
--   `docs/pine-script-standards.md`: Essential reading for Pine Script developers.
--   `docs/strategy-conversion-guide.md`: Crucial for translating Pine Script logic to Python.
--   `docs/development-workflow.md`: General guidelines for contributing to the project.
--   `requirements.txt` & `backtester/requirements.txt`: Define project dependencies.
-
-## Sub-Agent Usage Guidelines
-
-### When to Use Sub-Agents
-
-#### Pine Script Development
-- **Creating/Modifying Indicators**: Use `docs/pine-script-standards.md` for coding standards
-- **Adding Kelly Statistics**: Use `docs/templates/kelly-criterion.pine` template
-- **Strategy Configuration**: Use `docs/templates/strategy-config.pine` for standardized backtest settings
-- **File Organization**: Refer to `docs/development-workflow.md` for naming conventions
-- **Strategy Conversion**: Use `docs/strategy-conversion.md` for Pine → Python automation
-
-#### Python Development (Optional Future Implementation)
-- **Framework Integration**: Python backtesting frameworks can be independently installed and integrated as needed
-- **Environment Setup**: Use virtual environments and proper dependency management when adding Python frameworks
-- **Strategy Conversion**: Pine Script logic can be adapted to Python/pandas paradigms for backtesting
-
-#### General Development
-- **Command Line Operations**: Use `docs/development-workflow.md` for file operations
-- **Documentation Standards**: Follow documentation guidelines for all files
-- **Git Workflow**: Use proper commit standards and branch management
-- **Virtual Environment**: Always use `claudecode\venv` for Python development and backtesting
-
-### Sub-Agent Access Pattern
-
-For specific tasks, Claude Code should:
-
-1. **Check CLAUDE.md first** for high-level guidance
-2. **Refer to appropriate sub-agent** for detailed implementation:
-   - Pine Script standards → `docs/pine-script-standards.md`
-   - Strategy conversion → `docs/strategy-conversion-guide.md`
-   - Development workflow → `docs/development-workflow.md`
-   - Python frameworks → `docs/python-frameworks-guide.md`
-   - Context management → `docs/context-management-guide.md`
-   - Code templates → `docs/templates/`
-3. **Follow the documented patterns** while maintaining consistency across the codebase
-
-### File Creation Priority
-
-When creating new files:
-1. **Check existing structure** first
-2. **Use appropriate templates** when available
-3. **Follow naming conventions** from development workflow
-4. **Include proper documentation** as specified in standards
-
-## Context Management
-
-### Automated Context Monitoring
-Claude Code includes automated context management through the context management system (`docs/context-management-guide.md`). This system:
-
-- **Monitors conversation length** and provides compact recommendations
-- **Tracks context usage patterns** and performance indicators
-- **Suggests optimal timing** for context cleanup
-- **Provides focused compact commands** for task switching
-
-### Context Management Commands
-- **`/context-check`**: Analyze current conversation and provide compact recommendations
-- **`/context-stats`**: Show statistics about current context usage
-- **`/compact-help`**: Get help with context management best practices
-
-### When to Use Context Management
-- **After 15+ messages** in a single conversation
-- **When switching between major tasks** (e.g., from git operations to coding)
-- **When response times increase** noticeably
-- **Before starting new complex tasks**
-
-### Compact Best Practices
-- **Use focused compacts**: `/compact focus on [current_task]`
-- **Compact at task boundaries**: Clean context when finishing major work
-- **Monitor performance**: Watch for degraded response quality
-- **Regular maintenance**: Compact periodically during long development sessions
-
-## Recent Changes
-
-### Backtesting Setup and Data Preprocessing Enhancements
-
-This update details the improvements made to the backtesting setup, focusing on data handling, dependency compatibility, and plotting.
-
-*   **Automated Bokeh Plotting**:
-    *   Modified earlier runner scripts to automatically use `Bokeh` for plotting when `cerebro.plot()` is called without an explicit `plotter` argument.
-*   **Dual Data Feed Support**:
-    *   Runner scripts accept two distinct data feeds (`--main_data` for primary OHLCV and `--daily_data` for daily trend filtering) via command-line arguments.
-*   **Dependency Compatibility Fixes**:
-    *   **`numpy` and `bokeh`**: Resolved `AttributeError: module 'numpy' has no attribute 'bool8'` and `AttributeError: module 'numpy' has no attribute 'object'` by:
-        *   Downgrading `numpy` to `1.26.4` in `requirements.txt`.
-        *   Temporarily patching `backtester/venv/Lib/site-packages/backtrader_plotting/bokeh/figure.py` to replace `np.object` with `object` (Note: This is a temporary fix and will be overwritten upon reinstallation of `backtrader_plotting`).
-    *   **`backtrader_plotting` Module**: Added `backtrader_plotting==2.0.0` to `requirements.txt` to ensure its proper installation.
-*   **Robust Timestamp Handling (Data Preprocessing)**:
-    *   Addressed `ValueError: time data '...' does not match format '%Y-%m-%d %H:%M:%S'` by:
-        *   Creating `preprocess_data.py` to convert毫秒级 Unix 时间戳 to `YYYY-MM-DD HH:MM:SS` format.
-        *   Integrated `preprocess_data.py` into `dojo1_v2.py` to automatically preprocess data files before loading them into `backtrader`. This ensures consistent date/time formatting.
-    *   Modified `preprocess_data.py` to use `errors='coerce'` during `pd.to_datetime` conversion to handle any invalid timestamps gracefully.
-
-These changes significantly improve the stability and usability of the backtesting environment, especially when dealing with various data sources and plotting requirements.
+我已准备就绪，随时可以开始执行`CLAUDE_GEMINI_MEGA_COLLABORATION_EXECUTION_MASTER_DOCUMENT.md`中的计划。请指示。

@@ -1,0 +1,14 @@
+{
+  "statusLine": {
+    "type": "command",
+    "command": "input=$(cat); printf \"📁 %s | 🤖 %s | ⏰ %s\" \"$(echo \"$input\" | jq -r '.workspace.current_dir' | sed 's|.*[/\\\\]||')\" \"$(echo \"$input\" | jq -r '.model.display_name')\" \"$(date '+%H:%M:%S')\""
+  },
+  "permissions": {
+    "additionalDirectories": [
+      "D:\\BIGBOSS"
+    ]
+  },
+  "env": {
+    "CLAUDE_CODE_PROJECT_TYPE": "python"
+  }
+}
