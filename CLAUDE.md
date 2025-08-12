@@ -4,7 +4,62 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Architecture
 
-This is a professional cryptocurrency trading strategy backtesting system built on Backtrader with advanced Plotly visualization. The codebase follows a modular architecture centered around translating Pine Script strategies to Python for rigorous backtesting and analysis.
+This is a professional cryptocurrency trading strategy backtesting system built on Backtrader with advanced Bokeh visualization. The codebase follows a modular architecture centered around translating Pine Script strategies to Python for rigorous backtesting and analysis.
+
+### 📁 Current Project Structure
+
+```
+BIGBOSS/
+├── 📋 CLAUDE.md                   # 项目指南和架构文档
+├── 📋 README.md                   # 项目概览和快速入门
+├── 📋 DEVELOPMENT_ROADMAP.md      # 开发路线图
+├── 🔧 .gitignore                  # Git忽略文件配置
+├── 🔧 .env                        # 环境变量 (API密钥等)
+├── 🗂️ backtester/                # 🐍 Python回测系统
+│   ├── 🔧 run_doji_ashi_strategy_v5.py    # ⭐ V5主运行器 (RECOMMENDED)
+│   ├── 📁 strategies/
+│   │   └── 🔧 doji_ashi_strategy_v5.py    # ⭐ V5策略实现 (RECOMMENDED)
+│   ├── 📁 utils/
+│   │   └── 🔧 plotly_bt.py               # 可视化工具
+│   ├── 📁 data/                          # 📊 历史市场数据
+│   │   ├── 📁 BTCUSDT/, ETHUSDT/, SOLUSDT/ ...
+│   │   └── 📁 [SYMBOL]/[INTERVAL]/
+│   │       ├── 📁 zips/                  # 原始ZIP文件
+│   │       ├── 📁 csv/                   # 解压的月度CSV
+│   │       └── 📄 [SYMBOL]-merged.csv    # 合并的完整数据
+│   └── 📁 venv/                          # Python虚拟环境
+├── 📁 pinescript/                 # 📊 Pine Script策略和指标
+│   ├── 📁 indicators/
+│   │   ├── 📁 trend/              # 趋势指标
+│   │   ├── 📁 oscillator/         # 震荡器指标
+│   │   ├── 📁 volume/            # 成交量指标
+│   │   ├── 📁 structure/         # 结构分析
+│   │   ├── 📁 risk/              # 风险管理
+│   │   └── 📁 ml/                # 机器学习指标
+│   └── 📁 strategies/
+│       ├── 📁 trend/              # 趋势跟踪策略
+│       ├── 📁 reversal/           # 反转策略
+│       └── 📁 oscillator/         # 震荡器策略
+├── 📁 plots/                      # 📈 生成的可视化图表
+│   └── 📄 *.html                  # Bokeh交互式图表
+├── 📁 scripts/                    # 🔧 辅助脚本
+│   └── 🔧 download_data.py        # 数据下载脚本
+├── 📁 examples/                   # 📚 使用示例
+│   └── 🔧 run_csv_and_plot.py     # CSV绘图示例
+├── 📁 config/                     # ⚙️ 配置文件
+│   ├── 📄 requirements.txt         # 主要依赖
+│   └── 📄 requirements-local.txt   # 本地专用依赖
+├── 📁 docs/                       # 📚 技术文档
+│   ├── 📄 backtrader-quickstart.md        # Backtrader快速入门
+│   ├── 📄 development_log_v5_final_solution.md  # V5开发日志
+│   ├── 📄 development-workflow.md          # 开发工作流程
+│   ├── 📄 pine-script-standards.md        # Pine Script标准
+│   └── 📄 BACKTRADER_RETURNS_FIX.md      # 技术问题解决
+└── 📁 deprecated_v4/              # 🗄️ 已废弃的V4文件备份
+    ├── 🔧 run_doji_ashi_strategy_v4.py     # V4运行器 (已废弃)
+    ├── 🔧 doji_ashi_strategy_v4.py         # V4策略 (已废弃)
+    └── 📄 *.html, *.png                   # V4相关图表
+```
 
 ### Core Components
 
@@ -12,7 +67,7 @@ This is a professional cryptocurrency trading strategy backtesting system built 
 
 **Data Management**: Raw market data stored as ZIP archives in `backtester/data/` with automatic preprocessing and validation for OHLCV formats from Binance
 
-**Visualization Engine**: Dual-layer approach using traditional Backtrader plotting and advanced Plotly integration with plotly-resampler optimization for large datasets (>5K points)
+**Visualization Engine**: **V5 System** - backtrader-plotting + Bokeh interactive web charts with zero performance overhead
 
 ### Dependency Architecture
 
@@ -180,7 +235,7 @@ Strategies support different market types through configuration:
 ### File Organization Standards
 - **Main Strategy (V5)**: `backtester/strategies/doji_ashi_strategy_v5.py`
 - **Main Runner (V5)**: `backtester/run_doji_ashi_strategy_v5.py`
-- **Legacy (V4)**: `backtester/strategies/doji_ashi_strategy_v4.py` (deprecated)
+- **Legacy (V4)**: `deprecated_v4/doji_ashi_strategy_v4.py` (moved to backup)
 - **Documentation**: `docs/development_log_v5_final_solution.md`
 - **Pine Scripts**: `pinescript/strategies/[category]/[Strategy_Name].pine`
 
@@ -232,7 +287,7 @@ This project uses Claude Code specialized agents (wshobson/agents) for enhanced 
 ## Documentation References
 
 Key documentation files:
-- `docs/strategies/doji_ashi_strategy_v4_guide.md`: Complete v4 strategy guide
+- `deprecated_v4/doji_ashi_strategy_v4_guide.md`: Complete v4 strategy guide (moved to backup)
 - `docs/development-workflow.md`: Command-line operations and Git workflow
 - `docs/pine-script-standards.md`: Pine Script coding standards
 - `docs/backtrader-quickstart.md`: Framework quick start

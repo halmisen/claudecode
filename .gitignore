@@ -10,6 +10,7 @@ temp/
 
 # 忽略环境变量文件
 .env
+D:\BIGBOSS\.env
 
 # 忽略系统文件
 Thumbs.db
@@ -102,9 +103,16 @@ config/.env*
 # ================================
 .claude/settings.local.json
 .cursor/
+.vscode/
+
+# 防止子目录中创建重复的 .claude 目录
+*/.claude/
 
 # AI 对话记录和临时文档
 GEMINI.md
+
+# 废弃文件备份目录
+deprecated_*/
 
 # ================================
 # PineScript 相关

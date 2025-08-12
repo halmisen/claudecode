@@ -45,7 +45,13 @@
       "Bash(git ls-tree:*)",
       "Bash(cp:*)",
       "Bash(mkdir:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git fetch:*)",
+      "Bash(git pull:*)",
+      "Bash(git stash:*)",
+      "Bash(true)",
+      "Bash(backtestervenvScriptspython.exe -m pip list)",
+      "Bash(tree:*)"
     ],
     "deny": []
   }
