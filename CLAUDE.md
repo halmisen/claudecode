@@ -40,8 +40,7 @@ This is a professional cryptocurrency trading strategy backtesting system built 
 BIGBOSS/
 ├── 📋 CLAUDE.md                   # 项目指南和架构文档
 ├── 📋 README.md                   # 项目概览和快速入门
-├── 📋 波段策略开发框架.md          # 四剑客波段策略开发框架
-├── 📋 DEVELOPMENT_ROADMAP.md      # 开发路线图
+├── 📋 CLAUDE_GEMINI_MEGA_COLLABORATION_EXECUTION_MASTER_DOCUMENT.md  # 协作执行主文档
 ├── 🔧 .gitignore                  # Git忽略文件配置
 ├── 🔧 .env                        # 环境变量 (API密钥等)
 ├── 🗂️ backtester/                # 🐍 Python回测系统
@@ -80,13 +79,25 @@ BIGBOSS/
 │   ├── 📄 requirements.txt         # 主要依赖
 │   └── 📄 requirements-local.txt   # 本地专用依赖
 ├── 📁 docs/                       # 📚 技术文档
+│   ├── 📁 archive/                        # 🗄️ 已完成项目归档 (备用)
+│   ├── 📁 chinese/                        # 🇨🇳 中文文档 (备用)
+│   ├── 📁 project-planning/               # 📋 项目规划文档 (备用)
+│   ├── 📁 templates/                      # 📝 代码模板
+│   │   ├── 📄 kelly-criterion.pine        # Kelly准则模板
+│   │   └── 📄 strategy-config.pine        # 策略配置模板
+│   ├── 📄 BACKTRADER_RETURNS_FIX.md       # 技术问题解决
+│   ├── 📄 backtrader-architecture-guide.md # Backtrader架构指南
+│   ├── 📄 backtrader-parameter-reference.md # Backtrader参数参考
 │   ├── 📄 backtrader-quickstart.md        # Backtrader快速入门
+│   ├── 📄 context-management-guide.md     # 上下文管理指南
+│   ├── 📄 default_trading_parameters.md   # 默认交易参数
 │   ├── 📄 development_log_v5_final_solution.md  # V5开发日志
+│   ├── 📄 development_log_2025_08_11_fixes.md  # 2025-08-11修复日志
+│   ├── 📄 development_log_doji_ashi_v4_optimizations.md # V4优化日志
 │   ├── 📄 development-workflow.md          # 开发工作流程
 │   ├── 📄 pine-script-standards.md        # Pine Script标准
-│   ├── 📄 四剑客波段策略开发文档v1.0.md    # 四剑客策略技术文档
-│   ├── 📄 四剑客波段策略v1.1改进日志.md    # v1.1版本升级日志
-│   └── 📄 BACKTRADER_RETURNS_FIX.md      # 技术问题解决
+│   ├── 📄 README.md                       # 文档概览
+│   └── 📄 v5_usage_guidelines.md          # V5使用指南
 └── 📁 deprecated_v4/              # 🗄️ 已废弃的V4文件备份
     ├── 🔧 run_doji_ashi_strategy_v4.py     # V4运行器 (已废弃)
     ├── 🔧 doji_ashi_strategy_v4.py         # V4策略 (已废弃)
@@ -316,11 +327,116 @@ This project uses Claude Code specialized agents (wshobson/agents) for enhanced 
 - Pipeline performance → **data-engineer**
 - Advanced ML features → **ml-engineer**
 
-## Documentation References
+## File Organization and Path Management
 
-Key documentation files:
-- `deprecated_v4/doji_ashi_strategy_v4_guide.md`: Complete v4 strategy guide (moved to backup)
-- `docs/development-workflow.md`: Command-line operations and Git workflow
-- `docs/pine-script-standards.md`: Pine Script coding standards
-- `docs/backtrader-quickstart.md`: Framework quick start
-- `docs/BACKTRADER_RETURNS_FIX.md`: Technical issue resolution
+### Lessons Learned from File Organization Process
+
+#### Common Windows Path Issues and Solutions
+
+**Problem**: File movement operations failing in mixed bash/PowerShell environment
+- **Cause**: Using `move` command in bash environment on Windows
+- **Solution**: Use PowerShell commands: `Move-Item`, `Copy-Item`, `Remove-Item`
+- **Best Practice**: For problematic moves, use copy-then-delete approach
+
+**Problem**: Directory creation creating files instead of directories
+- **Cause**: Using `mkdir` with incorrect syntax or environment conflicts
+- **Solution**: Use PowerShell `New-Item -Path [path] -ItemType Directory`
+- **Verification**: Always use `Test-Path [path] -PathType Container` to verify
+
+#### File Organization Strategy
+
+**Successful Organization Pattern**:
+```
+Root Directory (Keep Minimal):
+├── CLAUDE.md (project guide)
+├── README.md (overview) 
+└── [USER_SPECIFIED_FILES] (e.g., collaboration documents)
+
+docs/ (All Technical Documentation):
+├── archive/ (completed projects)
+├── chinese/ (language-specific docs)
+├── project-planning/ (roadmaps, guides)
+├── templates/ (code templates)
+└── [technical_documents.md]
+```
+
+#### Path Reference Management
+
+**Critical Steps for Path Updates**:
+1. **Before moving files**: Search all documentation for existing path references
+   ```bash
+   grep -r "filename.md" . --include="*.md"
+   ```
+
+2. **Update documentation structure diagrams**: Always update project structure sections in CLAUDE.md
+
+3. **Update cross-references**: Check for relative path references in documentation files
+
+4. **Verification**: Test all documented paths after reorganization
+
+#### Windows-Specific Command Patterns
+
+**Safe File Operations**:
+```powershell
+# Test if path exists as directory
+Test-Path "path" -PathType Container
+
+# Safe file move (copy-then-delete)
+Copy-Item "source" "destination"
+Remove-Item "source"
+
+# Create directory reliably
+New-Item -Path "path" -ItemType Directory -Force
+```
+
+**Error Recovery**:
+- If files disappear during move operations, check if they were created as files instead of moved
+- Always verify target directories exist before moving files
+- Use absolute paths to avoid confusion
+
+#### Documentation Maintenance
+
+**Best Practices**:
+- Keep project structure diagrams in CLAUDE.md updated with actual file layout
+- Use relative paths in documentation for portability
+- Mark deprecated or moved files clearly in documentation
+- Create backup organization folders for future use
+
+## Documentation Quick Reference
+
+### 📚 Development Workflow
+- [`docs/development-workflow.md`](docs/development-workflow.md) - Command-line operations and Git workflow
+- [`docs/v5_usage_guidelines.md`](docs/v5_usage_guidelines.md) - V5 system usage and best practices
+- [`docs/context-management-guide.md`](docs/context-management-guide.md) - Managing large project context
+
+### 📊 Pine Script Development
+- [`docs/pine-script-standards.md`](docs/pine-script-standards.md) - Pine Script coding standards and conventions
+- [`docs/templates/kelly-criterion.pine`](docs/templates/kelly-criterion.pine) - Kelly Criterion position sizing template
+- [`docs/templates/strategy-config.pine`](docs/templates/strategy-config.pine) - Strategy configuration template
+
+### 🐍 Backtrader Framework
+- [`docs/backtrader-quickstart.md`](docs/backtrader-quickstart.md) - Backtrader framework quick start guide
+- [`docs/backtrader-architecture-guide.md`](docs/backtrader-architecture-guide.md) - Backtrader architecture deep dive
+- [`docs/backtrader-parameter-reference.md`](docs/backtrader-parameter-reference.md) - Complete parameter reference
+- [`docs/default_trading_parameters.md`](docs/default_trading_parameters.md) - Default trading parameters documentation
+
+### 🔧 Technical Issues & Troubleshooting
+- [`docs/BACKTRADER_RETURNS_FIX.md`](docs/BACKTRADER_RETURNS_FIX.md) - Technical issue resolution
+- [`docs/development_log_v5_final_solution.md`](docs/development_log_v5_final_solution.md) - V5 system development log
+- [`docs/development_log_doji_ashi_v4_optimizations.md`](docs/development_log_doji_ashi_v4_optimizations.md) - V4 optimization history
+
+### 📋 Project Documentation
+- [`docs/README.md`](docs/README.md) - Documentation overview and index
+- Legacy files: `deprecated_v4/doji_ashi_strategy_v4_guide.md` - Complete v4 strategy guide (moved to backup)
+
+### 🗄️ Archive Directories
+- [`docs/archive/`](docs/archive/) - Completed projects and historical documentation
+- [`docs/chinese/`](docs/chinese/) - Chinese language documentation
+- [`docs/project-planning/`](docs/project-planning/) - Project roadmaps and planning documents
+
+**Quick Access Tips**:
+- When writing Pine Script strategies → Read `docs/pine-script-standards.md`
+- When debugging Backtrader issues → Check `docs/BACKTRADER_RETURNS_FIX.md`
+- When starting new development → Review `docs/development-workflow.md`
+- When optimizing strategies → Reference `docs/v5_usage_guidelines.md`
+- When setting up parameters → Use `docs/default_trading_parameters.md`

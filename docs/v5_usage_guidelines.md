@@ -228,7 +228,7 @@ pip install --upgrade backtrader pandas numpy backtrader-plotting
 ### 3. 开发支持
 - 查看 `docs/development_log_v5_final_solution.md` 了解技术细节
 - 参考 `CLAUDE.md` 获取完整的项目文档
-- 使用 `GEMINI.md` 作为第三方AI助手的指引
+- 使用 `docs/project-planning/GEMINI.md` 作为第三方AI助手的指引
 
 ---
 
