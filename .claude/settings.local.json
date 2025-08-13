@@ -52,7 +52,9 @@
       "Bash(true)",
       "Bash(backtestervenvScriptspython.exe -m pip list)",
       "Bash(tree:*)",
-      "Bash(claude --version)"
+      "Bash(claude --version)",
+      "Bash(git filter-branch:*)",
+      "Bash(git rm:*)"
     ],
     "deny": []
   }
