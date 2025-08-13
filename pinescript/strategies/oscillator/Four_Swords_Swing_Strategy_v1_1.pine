@@ -1,0 +1,298 @@
+// @version=5
+strategy("Four Swords Swing Strategy v1.1", shorttitle="4S v1.1", overlay=true, 
+         initial_capital=500, default_qty_type=strategy.percent_of_equity, 
+         default_qty_value=20, commission_type=strategy.commission.percent, 
+         commission_value=0.02)
+
+// ⌘ SUMMARY:
+// Type: strategy
+// Purpose: High win rate swing trading strategy combining RSI Cyclic Smoothed, SQZMOM, ATR, and RSI Divergence
+// Key Inputs: RSI parameters with dynamic bands, SQZMOM squeeze release, ATR configurations, divergence detection options
+// Key Outputs: Entry/exit signals with 75%+ win rate target, dynamic stop/profit levels, signal strength scoring
+// Functions: RSI cyclic smoothing with dynamic bands, squeeze momentum release detection, ATR dynamic stops, divergence analysis
+// Logic: Enhanced multi-layer confirmation - RSI dynamic bands for timing, SQZMOM squeeze release for momentum, ATR manages risk, divergence enhances quality
+
+// === 策略参数输入 ===
+
+// RSI Cyclic Smoothed 参数组
+int_rsiCycle = input.int(20, "Dominant Cycle Length", minval=10, group="RSI Cyclic Smoothed") 
+int_rsiVibration = input.int(10, "RSI Vibration", group="RSI Cyclic Smoothed")
+float_rsiLeveling = input.float(10.0, "RSI Leveling %", group="RSI Cyclic Smoothed")
+bool_enableRSIBands = input.bool(true, "Enable RSI Dynamic Bands", group="RSI Cyclic Smoothed")
+
+// SQZMOM 参数组 (基于LazyBear方法)
+int_sqzBBLength = input.int(20, "BB Length", group="Squeeze Momentum")
+float_sqzBBMult = input.float(2.0, "BB Multiplier", group="Squeeze Momentum") 
+int_sqzKCLength = input.int(20, "KC Length", group="Squeeze Momentum")
+float_sqzKCMult = input.float(1.5, "KC Multiplier", group="Squeeze Momentum")
+bool_useTrueRange = input.bool(true, "Use True Range", group="Squeeze Momentum")
+
+// ATR 动态止损参数组
+int_atrLength = input.int(14, "ATR Length", group="ATR Dynamic Stops")
+float_atrStopMult = input.float(2.0, "ATR Stop Loss Multiplier", step=0.1, group="ATR Dynamic Stops")
+float_atrTargetMult = input.float(2.5, "ATR Take Profit Multiplier", step=0.1, group="ATR Dynamic Stops")
+
+// 背离检测参数组
+int_divPivotLeft = input.int(5, "Divergence Pivot Left", group="RSI Divergence")
+int_divPivotRight = input.int(5, "Divergence Pivot Right", group="RSI Divergence")
+int_divRangeUpper = input.int(60, "Max Divergence Range", group="RSI Divergence")
+int_divRangeLower = input.int(5, "Min Divergence Range", group="RSI Divergence")
+bool_enableBullDiv = input.bool(true, "Enable Bullish Divergence", group="RSI Divergence")
+bool_enableBearDiv = input.bool(true, "Enable Bearish Divergence", group="RSI Divergence")
+
+// 信号条件开关组
+bool_enableRSI = input.bool(true, "Enable RSI Band Filter", group="Signal Conditions")
+bool_enableSQZ = input.bool(true, "Enable SQZMOM Filter", group="Signal Conditions")  
+bool_enableDiv = input.bool(true, "Enable Divergence Enhancement", group="Signal Conditions")
+bool_enableVolume = input.bool(true, "Enable Volume Confirmation", group="Signal Conditions")
+
+// 风险管理参数组
+int_maxBarsInTrade = input.int(72, "Max Bars in Trade (4H = 12days)", group="Risk Management")
+string_tradeDirection = input.string("Both", "Trade Direction", ["Long Only", "Short Only", "Both"], group="Risk Management")
+
+// --- 全局函数定义 (必须在全局作用域) ---
+
+// 输入验证函数
+validateRSIInput(float_input) => 
+    not na(float_input) and float_input >= 0.0 and float_input <= 100.0
+
+// 范围检查函数
+inRange(bool_condition, int_rangeLower, int_rangeUpper) =>
+    int_bars = ta.barssince(bool_condition)
+    (int_rangeLower <= int_bars) and (int_bars <= int_rangeUpper)
+
+// 背离检测函数
+detectBullishDivergence(float_oscValue, int_pivotLeft, int_pivotRight, int_rangeLower, int_rangeUpper) =>
+    bool_oscPivotLow = not na(ta.pivotlow(float_oscValue, int_pivotLeft, int_pivotRight))
+    bool_oscHL = bool_oscPivotLow and (float_oscValue[int_pivotRight] > ta.valuewhen(bool_oscPivotLow, float_oscValue[int_pivotRight], 1)) and inRange(bool_oscPivotLow[1], int_rangeLower, int_rangeUpper)
+    bool_priceLL = bool_oscPivotLow and (low[int_pivotRight] < ta.valuewhen(bool_oscPivotLow, low[int_pivotRight], 1))
+    (bool_oscHL and bool_priceLL and bool_oscPivotLow)
+
+detectBearishDivergence(float_oscValue, int_pivotLeft, int_pivotRight, int_rangeLower, int_rangeUpper) =>
+    bool_oscPivotHigh = not na(ta.pivothigh(float_oscValue, int_pivotLeft, int_pivotRight))
+    bool_oscLH = bool_oscPivotHigh and (float_oscValue[int_pivotRight] < ta.valuewhen(bool_oscPivotHigh, float_oscValue[int_pivotRight], 1)) and inRange(bool_oscPivotHigh[1], int_rangeLower, int_rangeUpper)
+    bool_priceHH = bool_oscPivotHigh and (high[int_pivotRight] > ta.valuewhen(bool_oscPivotHigh, high[int_pivotRight], 1))
+    (bool_oscLH and bool_priceHH and bool_oscPivotHigh)
+
+// 信号强度计算函数
+calculateSignalStrength(bool_rsiSignal, bool_sqzSignal, bool_divSignal, bool_volSignal) =>
+    int_strength = 0
+    int_strength += bool_rsiSignal ? 3 : 0    // RSI band break +3 (increased weight)
+    int_strength += bool_sqzSignal ? 3 : 0    // SQZ release +3 (increased weight)  
+    int_strength += bool_divSignal ? 2 : 0    // Divergence +2
+    int_strength += bool_volSignal ? 1 : 0    // Volume +1
+    int_strength
+
+// --- 核心指标计算 ---
+
+// 1. RSI Cyclic Smoothed 计算 (基于v6方法)
+int_cyclelen = int_rsiCycle / 2
+int_cyclicmemory = int_rsiCycle * 2
+float_up = ta.rma(math.max(ta.change(close), 0), int_cyclelen)
+float_down = ta.rma(-math.min(ta.change(close), 0), int_cyclelen)
+float_rsiRaw = float_down == 0 ? 100 : float_up == 0 ? 0 : 100 - 100 / (1 + float_up / float_down)
+
+// RSI 循环平滑
+float_torque = 2.0 / (int_rsiVibration + 1)
+int_phasingLag = (int_rsiVibration - 1) / 2
+var float float_rsiSmooth = na
+float_rsiSmooth := (float_torque * (2 * float_rsiRaw - float_rsiRaw[int_phasingLag])) + ((1 - float_torque) * nz(float_rsiSmooth[1]))
+
+// RSI动态区间计算
+var float float_rsiUpperBand = na
+var float float_rsiLowerBand = na
+
+if bool_enableRSIBands
+    float_lmax = -999999.0
+    float_lmin = 999999.0
+    
+    for i = 0 to int_cyclicmemory - 1
+        if nz(float_rsiSmooth[i], -999999.0) > float_lmax
+            float_lmax := nz(float_rsiSmooth[i])
+        if nz(float_rsiSmooth[i], 999999.0) < float_lmin
+            float_lmin := nz(float_rsiSmooth[i])
+    
+    float_mstep = (float_lmax - float_lmin) / 100
+    float_aperc = float_rsiLeveling / 100
+    
+    // 计算下带
+    for steps = 0 to 100
+        float_testvalue = float_lmin + float_mstep * steps
+        int_below = 0
+        for m = 0 to int_cyclicmemory - 1
+            int_below := int_below + (float_rsiSmooth[m] < float_testvalue ? 1 : 0)
+        float_ratio = int_below / int_cyclicmemory
+        if float_ratio >= float_aperc
+            float_rsiLowerBand := float_testvalue
+            break
+    
+    // 计算上带
+    for steps = 0 to 100
+        float_testvalue = float_lmax - float_mstep * steps
+        int_above = 0
+        for m = 0 to int_cyclicmemory - 1
+            int_above := int_above + (float_rsiSmooth[m] >= float_testvalue ? 1 : 0)
+        float_ratio = int_above / int_cyclicmemory
+        if float_ratio >= float_aperc
+            float_rsiUpperBand := float_testvalue
+            break
+
+// 2. SQZMOM 计算 (基于LazyBear方法)
+float_sqzSource = close
+float_sqzBasis = ta.sma(float_sqzSource, int_sqzBBLength)
+float_sqzDev = float_sqzBBMult * ta.stdev(float_sqzSource, int_sqzBBLength)
+float_upperBB = float_sqzBasis + float_sqzDev
+float_lowerBB = float_sqzBasis - float_sqzDev
+
+float_sqzMA = ta.sma(float_sqzSource, int_sqzKCLength)
+float_sqzRange = bool_useTrueRange ? ta.tr : (high - low)
+float_rangema = ta.sma(float_sqzRange, int_sqzKCLength)
+float_upperKC = float_sqzMA + float_rangema * float_sqzKCMult
+float_lowerKC = float_sqzMA - float_rangema * float_sqzKCMult
+
+bool_sqzOn = (float_lowerBB > float_lowerKC) and (float_upperBB < float_upperKC)
+bool_sqzOff = (float_lowerBB < float_lowerKC) and (float_upperBB > float_upperKC)
+bool_noSqz = (not bool_sqzOn) and (not bool_sqzOff)
+
+// Momentum值计算 (LazyBear方法)
+float_sqzMomentum = ta.linreg(float_sqzSource - math.avg(math.avg(ta.highest(high, int_sqzKCLength), ta.lowest(low, int_sqzKCLength)), ta.sma(close, int_sqzKCLength)), int_sqzKCLength, 0)
+
+// 3. ATR 动态止损计算
+float_atrValue = ta.atr(int_atrLength)
+var float float_entryPrice = na
+var float float_stopLoss = na
+var float float_takeProfit = na
+
+// 4. 背离检测
+bool_rsiBullDiv = bool_enableDiv and bool_enableBullDiv and detectBullishDivergence(float_rsiSmooth, int_divPivotLeft, int_divPivotRight, int_divRangeLower, int_divRangeUpper)
+bool_rsiBearDiv = bool_enableDiv and bool_enableBearDiv and detectBearishDivergence(float_rsiSmooth, int_divPivotLeft, int_divPivotRight, int_divRangeLower, int_divRangeUpper)
+
+// --- 信号逻辑架构 (改进版) ---
+
+// Level 1: RSI动态区间信号 (替代固定超买超卖)
+bool_rsiBreakLower = bool_enableRSI and bool_enableRSIBands and (float_rsiSmooth < float_rsiLowerBand) and (float_rsiSmooth[1] >= float_rsiLowerBand[1])
+bool_rsiBreakUpper = bool_enableRSI and bool_enableRSIBands and (float_rsiSmooth > float_rsiUpperBand) and (float_rsiSmooth[1] <= float_rsiUpperBand[1])
+
+// Level 2: SQZMOM压缩释放信号 (LazyBear方法)
+bool_wasInSqueeze = bool_sqzOn[1]
+bool_isSqueezeRelease = bool_sqzOff and (not bool_sqzOn)
+bool_momentumPositive = float_sqzMomentum > 0
+bool_momentumNegative = float_sqzMomentum < 0
+
+bool_sqzLongSignal = bool_enableSQZ and bool_wasInSqueeze and bool_isSqueezeRelease and bool_momentumPositive
+bool_sqzShortSignal = bool_enableSQZ and bool_wasInSqueeze and bool_isSqueezeRelease and bool_momentumNegative
+
+// Level 3: 成交量确认
+float_avgVolume = ta.sma(volume, 20)
+bool_volumeConfirm = bool_enableVolume ? (volume > float_avgVolume * 1.2) : true
+
+// Level 4: 信号评分系统 (总分9分)
+int_longStrength = calculateSignalStrength(bool_rsiBreakLower, bool_sqzLongSignal, bool_rsiBullDiv, bool_volumeConfirm)
+int_shortStrength = calculateSignalStrength(bool_rsiBreakUpper, bool_sqzShortSignal, bool_rsiBearDiv, bool_volumeConfirm)
+
+// Level 5: 高质量信号过滤 (≥6分入场)
+bool_highQualityLong = (int_longStrength >= 6) and (string_tradeDirection == "Long Only" or string_tradeDirection == "Both")
+bool_highQualityShort = (int_shortStrength >= 6) and (string_tradeDirection == "Short Only" or string_tradeDirection == "Both")
+
+// --- 交易执行逻辑 ---
+
+// 入场逻辑
+if (bool_highQualityLong and strategy.position_size == 0)
+    float_entryPrice := close
+    float_stopLoss := close - (float_atrValue * float_atrStopMult)
+    float_takeProfit := close + (float_atrValue * float_atrTargetMult)
+    strategy.entry("Long", strategy.long, comment="4S Long " + str.tostring(int_longStrength))
+
+if (bool_highQualityShort and strategy.position_size == 0)
+    float_entryPrice := close
+    float_stopLoss := close + (float_atrValue * float_atrStopMult)  
+    float_takeProfit := close - (float_atrValue * float_atrTargetMult)
+    strategy.entry("Short", strategy.short, comment="4S Short " + str.tostring(int_shortStrength))
+
+// 出场逻辑 (增强版)
+if (strategy.position_size > 0) // Long position
+    // Priority 1: ATR Stop Loss
+    if (close <= float_stopLoss)
+        strategy.close("Long", comment="ATR Stop")
+    // Priority 2: ATR Take Profit  
+    else if (close >= float_takeProfit)
+        strategy.close("Long", comment="ATR Target")
+    // Priority 3: Momentum Reversal (LazyBear方法)
+    else if bool_enableSQZ and (float_sqzMomentum < 0)
+        strategy.close("Long", comment="Momentum Reversal")
+    // Priority 4: New Squeeze
+    else if bool_enableSQZ and bool_sqzOn and (not bool_sqzOn[1])
+        strategy.close("Long", comment="New Squeeze")
+    // Priority 5: RSI Upper Band Break
+    else if bool_enableRSI and bool_rsiBreakUpper
+        strategy.close("Long", comment="RSI Upper Break")
+    // Priority 6: Time Exit
+    else if ((bar_index - strategy.opentrades.entry_bar_index(0)) >= int_maxBarsInTrade)
+        strategy.close("Long", comment="Time Exit")
+
+if (strategy.position_size < 0) // Short position
+    // Priority 1: ATR Stop Loss
+    if (close >= float_stopLoss)
+        strategy.close("Short", comment="ATR Stop")
+    // Priority 2: ATR Take Profit
+    else if (close <= float_takeProfit)
+        strategy.close("Short", comment="ATR Target")
+    // Priority 3: Momentum Reversal (LazyBear方法)
+    else if bool_enableSQZ and (float_sqzMomentum > 0)
+        strategy.close("Short", comment="Momentum Reversal")
+    // Priority 4: New Squeeze
+    else if bool_enableSQZ and bool_sqzOn and (not bool_sqzOn[1])
+        strategy.close("Short", comment="New Squeeze")
+    // Priority 5: RSI Lower Band Break
+    else if bool_enableRSI and bool_rsiBreakLower
+        strategy.close("Short", comment="RSI Lower Break")
+    // Priority 6: Time Exit
+    else if ((bar_index - strategy.opentrades.entry_bar_index(0)) >= int_maxBarsInTrade)
+        strategy.close("Short", comment="Time Exit")
+
+// --- 可视化组件 ---
+
+// 颜色定义
+color_longSignal = color.new(color.green, 0)
+color_shortSignal = color.new(color.red, 0) 
+color_bullDiv = color.new(color.lime, 30)
+color_bearDiv = color.new(color.orange, 30)
+color_stopLoss = color.red
+color_takeProfit = color.green
+color_rsiUpper = color.new(color.red, 70)
+color_rsiLower = color.new(color.green, 70)
+
+// 入场信号标记
+plotshape(bool_highQualityLong, "Long Signal", shape.triangleup, location.belowbar, color_longSignal, size=size.normal)
+plotshape(bool_highQualityShort, "Short Signal", shape.triangledown, location.abovebar, color_shortSignal, size=size.normal)
+
+// 背离标记
+plotshape(bool_rsiBullDiv, "Bull Divergence", shape.circle, location.belowbar, color_bullDiv, size=size.small)
+plotshape(bool_rsiBearDiv, "Bear Divergence", shape.circle, location.abovebar, color_bearDiv, size=size.small)
+
+// RSI区间突破标记
+plotshape(bool_rsiBreakLower, "RSI Lower Break", shape.diamond, location.belowbar, color_rsiLower, size=size.tiny)
+plotshape(bool_rsiBreakUpper, "RSI Upper Break", shape.diamond, location.abovebar, color_rsiUpper, size=size.tiny)
+
+// 动态止损止盈线
+plot((strategy.position_size != 0) ? float_stopLoss : na, "Dynamic Stop", color_stopLoss, 2, plot.style_stepline)
+plot((strategy.position_size != 0) ? float_takeProfit : na, "Dynamic Target", color_takeProfit, 2, plot.style_stepline)
+
+// --- 信息面板 ---
+if barstate.islast
+    var label label_info = label.new(na, na, "", style=label.style_label_left, color=color.new(color.white, 10), textcolor=color.black, size=size.normal)
+    label.set_xy(label_info, bar_index + 3, high)
+    
+    string_rsiStatus = "RSI: " + str.tostring(float_rsiSmooth, "#.##") + " [" + str.tostring(float_rsiLowerBand, "#") + "-" + str.tostring(float_rsiUpperBand, "#") + "]"
+    string_sqzStatus = "SQZ: " + (bool_sqzOn ? "ON" : bool_sqzOff ? "OFF" : "NO") + " Mom:" + str.tostring(float_sqzMomentum, "#.###")
+    string_longSignal = "Long: " + str.tostring(int_longStrength) + "/9"
+    string_shortSignal = "Short: " + str.tostring(int_shortStrength) + "/9" 
+    string_divStatus = "Div: " + (bool_rsiBullDiv ? "BULL" : bool_rsiBearDiv ? "BEAR" : "NONE")
+    
+    label.set_text(label_info, "Four Swords v1.1\n" + string_rsiStatus + "\n" + string_sqzStatus + "\n" + string_longSignal + "\n" + string_shortSignal + "\n" + string_divStatus)
+
+// --- 警报条件 ---
+alertcondition(bool_highQualityLong, "Four Swords Long Signal", "4S v1.1: High quality long signal detected!")
+alertcondition(bool_highQualityShort, "Four Swords Short Signal", "4S v1.1: High quality short signal detected!")
+alertcondition(bool_sqzLongSignal, "Squeeze Release Long", "4S v1.1: Squeeze release with positive momentum!")
+alertcondition(bool_sqzShortSignal, "Squeeze Release Short", "4S v1.1: Squeeze release with negative momentum!")

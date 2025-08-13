@@ -1,5 +1,5 @@
 // @version=5
-strategy("Vegas Tunnel XZ Strategy v1.2", shorttitle="VTXZ v1.2", overlay=true, initial_capital=500, default_qty_type=strategy.percent_of_equity, default_qty_value=20, commission_type=strategy.commission.percent, commission_value=0.02)
+strategy("Vegas Tunnel XZ Strategy v1.3 END", shorttitle="VTXZ v1.3 END", overlay=true, initial_capital=500, default_qty_type=strategy.percent_of_equity, default_qty_value=20, commission_type=strategy.commission.percent, commission_value=0.02)
 
 // === EMA Tunnel Parameters ===
 int_emaFast1_len = input.int(144, "Fast Tunnel Lower Band", group="EMA Tunnels")
@@ -10,25 +10,25 @@ int_emaFilter_len = input.int(12, "Filter Line Period", group="EMA Tunnels")
 
 // === Confirmation Indicator Parameters ===
 int_adxLength = input.int(14, "ADX Length", group="Confirmation Indicators")
-float_adxThreshold = input.float(25.0, "ADX Threshold", group="Confirmation Indicators")
+float_adxThreshold = input.float(18.0, "ADX Threshold", group="Confirmation Indicators")
 int_macdFast = input.int(12, "MACD Fast Length", group="Confirmation Indicators")
 int_macdSlow = input.int(26, "MACD Slow Length", group="Confirmation Indicators")
 int_macdSignal = input.int(9, "MACD Signal Length", group="Confirmation Indicators")
 
 // === Signal Condition Switches ===
-bool_enableAdx = input.bool(true, "Enable ADX Confirmation", group="Signal Conditions")
+bool_enableAdx = input.bool(false, "Enable ADX Confirmation", group="Signal Conditions")
 bool_enableFilter = input.bool(true, "Enable EMA12 Filter", group="Signal Conditions")
 bool_enableMacd = input.bool(true, "Enable MACD Momentum", group="Signal Conditions")
 bool_enablePullback = input.bool(false, "Require Pullback Confirmation", group="Signal Conditions")
-bool_bypassLongTerm = input.bool(false, "Bypass Long Term Trend", group="Signal Conditions", tooltip="Allow trading when fast tunnel is below slow tunnel - suitable for sideways/weak bounce markets")
+bool_bypassLongTerm = input.bool(true, "Bypass Long Term Trend", group="Signal Conditions", tooltip="Allow trading when fast tunnel is below slow tunnel - suitable for sideways/weak bounce markets")
 
 // === Multi-Exit Strategy Parameters ===
-bool_useATRStop = input.bool(true, "Use ATR Fixed Stop Loss", group="Exit Methods", tooltip="Traditional ATR-based stop loss and take profit")
+bool_useATRStop = input.bool(false, "Use ATR Fixed Stop Loss", group="Exit Methods", tooltip="Traditional ATR-based stop loss and take profit")
 bool_useTrailingStop = input.bool(false, "Use Trailing Stop", group="Exit Methods", tooltip="Dynamic trailing stop that follows price upward")
-bool_useEMA12Cross = input.bool(false, "Use EMA12 Cross Exit", group="Exit Methods", tooltip="Exit when EMA12 crosses below tunnel bands")
-bool_useTechnicalExit = input.bool(false, "Use Technical Multi Exit", group="Exit Methods", tooltip="Multiple technical indicators confirmation")
-bool_useTimeExit = input.bool(false, "Use Time-based Exit", group="Exit Methods", tooltip="Force exit after maximum bars in trade")
-int_maxBarsInTrade = input.int(100, "Max Bars in Trade", group="Exit Methods")
+bool_useEMA12Cross = input.bool(true, "Use EMA12 Cross Exit", group="Exit Methods", tooltip="Exit when EMA12 crosses below tunnel bands")
+bool_useTechnicalExit = input.bool(true, "Use Technical Multi Exit", group="Exit Methods", tooltip="Multiple technical indicators confirmation")
+bool_useTimeExit = input.bool(true, "Use Time-based Exit", group="Exit Methods", tooltip="Force exit after maximum bars in trade")
+int_maxBarsInTrade = input.int(50, "Max Bars in Trade", group="Exit Methods")
 float_trailingATRMult = input.float(1.5, "Trailing Stop ATR Multiplier", step=0.1, group="Exit Methods")
 
 // === Exit Strategy Parameters ===
@@ -195,8 +195,8 @@ string_conditionStatus = "LT:" + str.tostring(bool_longTermBullish) + "(" + stri
 if barstate.islast
     var label label_info = label.new(na, na, "", style=label.style_label_left, color=color.new(color.white, 20), textcolor=color.black, size=size.normal)
     label.set_xy(label_info, bar_index + 5, high)
-    label.set_text(label_info, "Vegas Tunnel XZ Strategy v1.2\nADX:" + str.tostring(float_adxValue, "#.##") + "\n" + string_conditionStatus + "\n" + string_exitStatus)
+    label.set_text(label_info, "Vegas Tunnel XZ Strategy v1.3 END\nADX:" + str.tostring(float_adxValue, "#.##") + "\n" + string_conditionStatus + "\n" + string_exitStatus)
 
 // --- Alerts ---
-alertcondition(bool_longSignal, "Vegas Tunnel Long Signal", "Vegas Tunnel XZ v1.2: Long signal generated - All 5 conditions met!")
-alertcondition(bool_trendStrong, "Vegas Tunnel ADX Strong", "Vegas Tunnel XZ v1.2: ADX above threshold - Strong trend detected!")
+alertcondition(bool_longSignal, "Vegas Tunnel Long Signal", "Vegas Tunnel XZ v1.3 END: Long signal generated - All 5 conditions met!")
+alertcondition(bool_trendStrong, "Vegas Tunnel ADX Strong", "Vegas Tunnel XZ v1.3 END: ADX above threshold - Strong trend detected!")

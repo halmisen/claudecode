@@ -14,18 +14,25 @@ This is a professional cryptocurrency trading strategy backtesting system built 
 
 ⚠️ **Important**: All command-line instructions and automated scripts must use Windows-compatible syntax. Use PowerShell commands when cross-platform compatibility is needed.
 
-### 🚀 Vegas Tunnel XZ 项目状态
+### 🚀 项目状态总览
 
-**当前版本**: Vegas Tunnel XZ Strategy v1.2 ✅  
-**文件位置**: `pinescript/indicators/trend/Vegas_Tunnel_XZ_v1_2_strategy.pine`  
-**项目状态**: 开发完成，功能完整  
-**备份策略**: 不再生成backup文件，依赖Git版本控制
+#### Vegas Tunnel XZ 项目 (已归档)
+**当前版本**: Vegas Tunnel XZ Strategy v1.3 END ✅  
+**文件位置**: `pinescript/strategies/trend/Vegas_Tunnel_XZ_v1_3_end_strategy.pine`  
+**项目状态**: 已完成并归档 - 专注转向波段策略开发  
+**核心功能**: 五条EMA隧道系统 + ADX + MACD多重确认，低胜率(~40%)趋势跟踪策略
 
-**核心功能**:
-- 🎯 五条EMA隧道系统 + ADX + MACD多重确认
-- 🛡️ 5种可选退出机制 (ATR/跟踪/EMA12/技术/时间)
-- ⚙️ 完全可配置参数，适应不同市场环境
-- 📊 策略形式，$500初始资金，20%仓位，0.02%手续费
+#### 四剑客波段策略 (当前主力)
+**当前版本**: Four Swords Swing Strategy v1.1 ⭐  
+**文件位置**: `pinescript/strategies/oscillator/Four_Swords_Swing_Strategy_v1_1.pine`  
+**项目状态**: 🚀 活跃开发中 - 针对INFP性格的高胜率波段策略  
+**开发进度**: Phase 2已完成，Phase 3回测验证进行中
+
+**核心功能** (v1.1):
+- 🎯 RSI Cyclic Smoothed动态区间 + SQZMOM LazyBear专业检测
+- 🛡️ ATR动态止损 + 动量反转 + 新压缩检测多层出场
+- ⚙️ 9分制信号评分系统，≥6分高质量入场
+- 📊 目标胜率78%+，适合500USDT小资金波段交易
 
 ### 📁 Current Project Structure
 
@@ -33,6 +40,7 @@ This is a professional cryptocurrency trading strategy backtesting system built 
 BIGBOSS/
 ├── 📋 CLAUDE.md                   # 项目指南和架构文档
 ├── 📋 README.md                   # 项目概览和快速入门
+├── 📋 波段策略开发框架.md          # 四剑客波段策略开发框架
 ├── 📋 DEVELOPMENT_ROADMAP.md      # 开发路线图
 ├── 🔧 .gitignore                  # Git忽略文件配置
 ├── 🔧 .env                        # 环境变量 (API密钥等)
@@ -59,8 +67,10 @@ BIGBOSS/
 │   │   └── 📁 ml/                # 机器学习指标
 │   └── 📁 strategies/
 │       ├── 📁 trend/              # 趋势跟踪策略
-│       ├── 📁 reversal/           # 反转策略
+│       ├── 📁 reversal/           # 反转策略  
 │       └── 📁 oscillator/         # 震荡器策略
+│           ├── ⭐ Four_Swords_Swing_Strategy_v1_0.pine  # 四剑客v1.0 (已完成)
+│           └── ⭐ Four_Swords_Swing_Strategy_v1_1.pine  # 四剑客v1.1 (最新版)
 ├── 📁 plots/                      # 📈 生成的可视化图表
 │   └── 📄 *.html                  # Bokeh交互式图表
 ├── 📁 scripts/                    # 🔧 辅助脚本
@@ -75,6 +85,8 @@ BIGBOSS/
 │   ├── 📄 development_log_v5_final_solution.md  # V5开发日志
 │   ├── 📄 development-workflow.md          # 开发工作流程
 │   ├── 📄 pine-script-standards.md        # Pine Script标准
+│   ├── 📄 四剑客波段策略开发文档v1.0.md    # 四剑客策略技术文档
+│   ├── 📄 四剑客波段策略v1.1改进日志.md    # v1.1版本升级日志
 │   └── 📄 BACKTRADER_RETURNS_FIX.md      # 技术问题解决
 └── 📁 deprecated_v4/              # 🗄️ 已废弃的V4文件备份
     ├── 🔧 run_doji_ashi_strategy_v4.py     # V4运行器 (已废弃)

@@ -1,0 +1,234 @@
+// @version=5
+strategy("Four Swords Swing Strategy v1.0", shorttitle="4S v1.0", overlay=true, 
+         initial_capital=500, default_qty_type=strategy.percent_of_equity, 
+         default_qty_value=20, commission_type=strategy.commission.percent, 
+         commission_value=0.02)
+
+// ⌘ SUMMARY:
+// Type: strategy
+// Purpose: High win rate swing trading strategy combining RSI Cyclic Smoothed, SQZMOM, ATR, and RSI Divergence
+// Key Inputs: RSI parameters, SQZMOM settings, ATR configurations, divergence detection options
+// Key Outputs: Entry/exit signals with 75%+ win rate target, dynamic stop/profit levels, signal strength scoring
+// Functions: RSI smoothing, squeeze momentum detection, ATR dynamic stops, divergence analysis
+// Logic: Multi-layer confirmation system - RSI identifies timing, SQZMOM confirms momentum, ATR manages risk, divergence enhances quality
+
+// === 策略参数输入 ===
+
+// RSI Cyclic Smoothed 参数组
+int_rsiLength = input.int(14, "RSI Length", group="RSI Cyclic Smoothed")
+int_rsiCycle = input.int(20, "Dominant Cycle Length", minval=10, group="RSI Cyclic Smoothed") 
+int_rsiVibration = input.int(10, "RSI Vibration", group="RSI Cyclic Smoothed")
+float_rsiOversold = input.float(30.0, "RSI Oversold Level", group="RSI Cyclic Smoothed")
+float_rsiOverbought = input.float(70.0, "RSI Overbought Level", group="RSI Cyclic Smoothed")
+
+// SQZMOM 参数组
+int_sqzBBLength = input.int(20, "BB Length", group="Squeeze Momentum")
+float_sqzBBMult = input.float(2.0, "BB Multiplier", group="Squeeze Momentum") 
+int_sqzKCLength = input.int(20, "KC Length", group="Squeeze Momentum")
+float_sqzKCMult = input.float(1.5, "KC Multiplier", group="Squeeze Momentum")
+bool_useTrueRange = input.bool(true, "Use True Range", group="Squeeze Momentum")
+
+// ATR 动态止损参数组
+int_atrLength = input.int(14, "ATR Length", group="ATR Dynamic Stops")
+float_atrStopMult = input.float(2.0, "ATR Stop Loss Multiplier", step=0.1, group="ATR Dynamic Stops")
+float_atrTargetMult = input.float(2.5, "ATR Take Profit Multiplier", step=0.1, group="ATR Dynamic Stops")
+
+// 背离检测参数组
+int_divPivotLeft = input.int(5, "Divergence Pivot Left", group="RSI Divergence")
+int_divPivotRight = input.int(5, "Divergence Pivot Right", group="RSI Divergence")
+int_divRangeUpper = input.int(60, "Max Divergence Range", group="RSI Divergence")
+int_divRangeLower = input.int(5, "Min Divergence Range", group="RSI Divergence")
+bool_enableBullDiv = input.bool(true, "Enable Bullish Divergence", group="RSI Divergence")
+bool_enableBearDiv = input.bool(true, "Enable Bearish Divergence", group="RSI Divergence")
+
+// 信号条件开关组
+bool_enableRSI = input.bool(true, "Enable RSI Filter", group="Signal Conditions")
+bool_enableSQZ = input.bool(true, "Enable SQZMOM Filter", group="Signal Conditions")  
+bool_enableDiv = input.bool(true, "Enable Divergence Enhancement", group="Signal Conditions")
+bool_enableVolume = input.bool(true, "Enable Volume Confirmation", group="Signal Conditions")
+
+// 风险管理参数组
+int_maxBarsInTrade = input.int(72, "Max Bars in Trade (4H = 12days)", group="Risk Management")
+string_tradeDirection = input.string("Both", "Trade Direction", ["Long Only", "Short Only", "Both"], group="Risk Management")
+
+// --- 全局函数定义 (必须在全局作用域) ---
+
+// 输入验证函数
+validateRSIInput(float_input) => 
+    not na(float_input) and float_input >= 0.0 and float_input <= 100.0
+
+// 范围检查函数
+inRange(bool_condition, int_rangeLower, int_rangeUpper) =>
+    int_bars = ta.barssince(bool_condition)
+    (int_rangeLower <= int_bars) and (int_bars <= int_rangeUpper)
+
+// 背离检测函数
+detectBullishDivergence(float_oscValue, int_pivotLeft, int_pivotRight, int_rangeLower, int_rangeUpper) =>
+    bool_oscPivotLow = not na(ta.pivotlow(float_oscValue, int_pivotLeft, int_pivotRight))
+    bool_oscHL = bool_oscPivotLow and (float_oscValue[int_pivotRight] > ta.valuewhen(bool_oscPivotLow, float_oscValue[int_pivotRight], 1)) and inRange(bool_oscPivotLow[1], int_rangeLower, int_rangeUpper)
+    bool_priceLL = bool_oscPivotLow and (low[int_pivotRight] < ta.valuewhen(bool_oscPivotLow, low[int_pivotRight], 1))
+    (bool_oscHL and bool_priceLL and bool_oscPivotLow)
+
+detectBearishDivergence(float_oscValue, int_pivotLeft, int_pivotRight, int_rangeLower, int_rangeUpper) =>
+    bool_oscPivotHigh = not na(ta.pivothigh(float_oscValue, int_pivotLeft, int_pivotRight))
+    bool_oscLH = bool_oscPivotHigh and (float_oscValue[int_pivotRight] < ta.valuewhen(bool_oscPivotHigh, float_oscValue[int_pivotRight], 1)) and inRange(bool_oscPivotHigh[1], int_rangeLower, int_rangeUpper)
+    bool_priceHH = bool_oscPivotHigh and (high[int_pivotRight] > ta.valuewhen(bool_oscPivotHigh, high[int_pivotRight], 1))
+    (bool_oscLH and bool_priceHH and bool_oscPivotHigh)
+
+// 信号强度计算函数
+calculateSignalStrength(bool_rsiSignal, bool_sqzSignal, bool_divSignal, bool_volSignal) =>
+    int_strength = 0
+    int_strength += bool_rsiSignal ? 2 : 0    // RSI extreme +2
+    int_strength += bool_sqzSignal ? 2 : 0    // SQZ release +2  
+    int_strength += bool_divSignal ? 3 : 0    // Divergence +3
+    int_strength += bool_volSignal ? 1 : 0    // Volume +1
+    int_strength
+
+// --- 核心指标计算 ---
+
+// 1. RSI Cyclic Smoothed 计算
+int_cyclelen = int_rsiCycle / 2
+float_up = ta.rma(math.max(ta.change(close), 0), int_cyclelen)
+float_down = ta.rma(-math.min(ta.change(close), 0), int_cyclelen)
+float_rsiRaw = float_down == 0 ? 100 : float_up == 0 ? 0 : 100 - 100 / (1 + float_up / float_down)
+
+// RSI 循环平滑
+float_torque = 2.0 / (int_rsiVibration + 1)
+int_phasingLag = (int_rsiVibration - 1) / 2
+var float float_rsiSmooth = na
+float_rsiSmooth := (float_torque * (2 * float_rsiRaw - float_rsiRaw[int_phasingLag])) + ((1 - float_torque) * nz(float_rsiSmooth[1]))
+
+// 2. SQZMOM 计算
+float_sqzSource = close
+float_sqzBasis = ta.sma(float_sqzSource, int_sqzBBLength)
+float_sqzDev = float_sqzBBMult * ta.stdev(float_sqzSource, int_sqzBBLength)
+float_upperBB = float_sqzBasis + float_sqzDev
+float_lowerBB = float_sqzBasis - float_sqzDev
+
+float_sqzMA = ta.sma(float_sqzSource, int_sqzKCLength)
+float_sqzRange = bool_useTrueRange ? ta.tr : (high - low)
+float_rangema = ta.sma(float_sqzRange, int_sqzKCLength)
+float_upperKC = float_sqzMA + float_rangema * float_sqzKCMult
+float_lowerKC = float_sqzMA - float_rangema * float_sqzKCMult
+
+bool_sqzOn = (float_lowerBB > float_lowerKC) and (float_upperBB < float_upperKC)
+bool_sqzOff = (float_lowerBB < float_lowerKC) and (float_upperBB > float_upperKC)
+bool_noSqz = (not bool_sqzOn) and (not bool_sqzOff)
+
+float_sqzMomentum = ta.linreg(float_sqzSource - ((ta.highest(high, int_sqzKCLength) + ta.lowest(low, int_sqzKCLength)) / 2 + ta.sma(close, int_sqzKCLength)) / 2, int_sqzKCLength, 0)
+
+// 3. ATR 动态止损计算
+float_atrValue = ta.atr(int_atrLength)
+var float float_entryPrice = na
+var float float_stopLoss = na
+var float float_takeProfit = na
+
+// 4. 背离检测
+bool_rsiBullDiv = bool_enableDiv and bool_enableBullDiv and detectBullishDivergence(float_rsiSmooth, int_divPivotLeft, int_divPivotRight, int_divRangeLower, int_divRangeUpper)
+bool_rsiBearDiv = bool_enableDiv and bool_enableBearDiv and detectBearishDivergence(float_rsiSmooth, int_divPivotLeft, int_divPivotRight, int_divRangeLower, int_divRangeUpper)
+
+// --- 信号逻辑架构 ---
+
+// Level 1: 基础信号识别
+bool_rsiOversold = bool_enableRSI and validateRSIInput(float_rsiSmooth) and (float_rsiSmooth < float_rsiOversold)
+bool_rsiOverbought = bool_enableRSI and validateRSIInput(float_rsiSmooth) and (float_rsiSmooth > float_rsiOverbought)
+
+// Level 2: 动量确认
+bool_sqzRelease = bool_enableSQZ and bool_sqzOff and (not bool_sqzOff[1]) // 刚从压缩释放
+bool_sqzMomentumUp = bool_enableSQZ and (float_sqzMomentum > float_sqzMomentum[1]) and (float_sqzMomentum > 0)
+bool_sqzMomentumDown = bool_enableSQZ and (float_sqzMomentum < float_sqzMomentum[1]) and (float_sqzMomentum < 0)
+
+// Level 3: 成交量确认
+float_avgVolume = ta.sma(volume, 20)
+bool_volumeConfirm = bool_enableVolume ? (volume > float_avgVolume * 1.2) : true
+
+// Level 4: 信号评分系统
+int_longStrength = calculateSignalStrength(bool_rsiOversold, bool_sqzMomentumUp, bool_rsiBullDiv, bool_volumeConfirm)
+int_shortStrength = calculateSignalStrength(bool_rsiOverbought, bool_sqzMomentumDown, bool_rsiBearDiv, bool_volumeConfirm)
+
+// Level 5: 高质量信号过滤 (≥5分入场)
+bool_highQualityLong = (int_longStrength >= 5) and (string_tradeDirection == "Long Only" or string_tradeDirection == "Both")
+bool_highQualityShort = (int_shortStrength >= 5) and (string_tradeDirection == "Short Only" or string_tradeDirection == "Both")
+
+// --- 交易执行逻辑 ---
+
+// 入场逻辑
+if (bool_highQualityLong and strategy.position_size == 0)
+    float_entryPrice := close
+    float_stopLoss := close - (float_atrValue * float_atrStopMult)
+    float_takeProfit := close + (float_atrValue * float_atrTargetMult)
+    strategy.entry("Long", strategy.long, comment="4S Long " + str.tostring(int_longStrength))
+
+if (bool_highQualityShort and strategy.position_size == 0)
+    float_entryPrice := close
+    float_stopLoss := close + (float_atrValue * float_atrStopMult)  
+    float_takeProfit := close - (float_atrValue * float_atrTargetMult)
+    strategy.entry("Short", strategy.short, comment="4S Short " + str.tostring(int_shortStrength))
+
+// 出场逻辑
+if (strategy.position_size > 0) // Long position
+    // Priority 1: ATR Stop Loss
+    if (close <= float_stopLoss)
+        strategy.close("Long", comment="ATR Stop")
+    // Priority 2: ATR Take Profit  
+    else if (close >= float_takeProfit)
+        strategy.close("Long", comment="ATR Target")
+    // Priority 3: RSI Reversal
+    else if (float_rsiSmooth > float_rsiOverbought)
+        strategy.close("Long", comment="RSI Overbought")
+    // Priority 4: Time Exit
+    else if ((bar_index - strategy.opentrades.entry_bar_index(0)) >= int_maxBarsInTrade)
+        strategy.close("Long", comment="Time Exit")
+
+if (strategy.position_size < 0) // Short position
+    // Priority 1: ATR Stop Loss
+    if (close >= float_stopLoss)
+        strategy.close("Short", comment="ATR Stop")
+    // Priority 2: ATR Take Profit
+    else if (close <= float_takeProfit)  
+        strategy.close("Short", comment="ATR Target")
+    // Priority 3: RSI Reversal
+    else if (float_rsiSmooth < float_rsiOversold)
+        strategy.close("Short", comment="RSI Oversold")
+    // Priority 4: Time Exit
+    else if ((bar_index - strategy.opentrades.entry_bar_index(0)) >= int_maxBarsInTrade)
+        strategy.close("Short", comment="Time Exit")
+
+// --- 可视化组件 ---
+
+// 颜色定义
+color_longSignal = color.new(color.green, 0)
+color_shortSignal = color.new(color.red, 0) 
+color_bullDiv = color.new(color.lime, 30)
+color_bearDiv = color.new(color.orange, 30)
+color_stopLoss = color.red
+color_takeProfit = color.green
+
+// 入场信号标记
+plotshape(bool_highQualityLong, "Long Signal", shape.triangleup, location.belowbar, color_longSignal, size=size.normal)
+plotshape(bool_highQualityShort, "Short Signal", shape.triangledown, location.abovebar, color_shortSignal, size=size.normal)
+
+// 背离标记
+plotshape(bool_rsiBullDiv, "Bull Divergence", shape.circle, location.belowbar, color_bullDiv, size=size.small)
+plotshape(bool_rsiBearDiv, "Bear Divergence", shape.circle, location.abovebar, color_bearDiv, size=size.small)
+
+// 动态止损止盈线
+plot((strategy.position_size != 0) ? float_stopLoss : na, "Dynamic Stop", color_stopLoss, 2, plot.style_stepline)
+plot((strategy.position_size != 0) ? float_takeProfit : na, "Dynamic Target", color_takeProfit, 2, plot.style_stepline)
+
+// --- 信息面板 ---
+if barstate.islast
+    var label label_info = label.new(na, na, "", style=label.style_label_left, color=color.new(color.white, 10), textcolor=color.black, size=size.normal)
+    label.set_xy(label_info, bar_index + 3, high)
+    
+    string_rsiStatus = "RSI: " + str.tostring(float_rsiSmooth, "#.##")
+    string_sqzStatus = "SQZ: " + (bool_sqzOn ? "ON" : bool_sqzOff ? "OFF" : "NO")
+    string_longSignal = "Long: " + str.tostring(int_longStrength) + "/8"
+    string_shortSignal = "Short: " + str.tostring(int_shortStrength) + "/8" 
+    string_divStatus = "Div: " + (bool_rsiBullDiv ? "BULL" : bool_rsiBearDiv ? "BEAR" : "NONE")
+    
+    label.set_text(label_info, "Four Swords v1.0\n" + string_rsiStatus + "\n" + string_sqzStatus + "\n" + string_longSignal + "\n" + string_shortSignal + "\n" + string_divStatus)
+
+// --- 警报条件 ---
+alertcondition(bool_highQualityLong, "Four Swords Long Signal", "4S v1.0: High quality long signal detected!")
+alertcondition(bool_highQualityShort, "Four Swords Short Signal", "4S v1.0: High quality short signal detected!")
