@@ -1,0 +1,202 @@
+// @version=5
+strategy("Vegas Tunnel XZ Strategy v1.2", shorttitle="VTXZ v1.2", overlay=true, initial_capital=500, default_qty_type=strategy.percent_of_equity, default_qty_value=20, commission_type=strategy.commission.percent, commission_value=0.02)
+
+// === EMA Tunnel Parameters ===
+int_emaFast1_len = input.int(144, "Fast Tunnel Lower Band", group="EMA Tunnels")
+int_emaFast2_len = input.int(169, "Fast Tunnel Upper Band", group="EMA Tunnels")
+int_emaSlow1_len = input.int(576, "Slow Tunnel Lower Band", group="EMA Tunnels")
+int_emaSlow2_len = input.int(676, "Slow Tunnel Upper Band", group="EMA Tunnels")
+int_emaFilter_len = input.int(12, "Filter Line Period", group="EMA Tunnels")
+
+// === Confirmation Indicator Parameters ===
+int_adxLength = input.int(14, "ADX Length", group="Confirmation Indicators")
+float_adxThreshold = input.float(25.0, "ADX Threshold", group="Confirmation Indicators")
+int_macdFast = input.int(12, "MACD Fast Length", group="Confirmation Indicators")
+int_macdSlow = input.int(26, "MACD Slow Length", group="Confirmation Indicators")
+int_macdSignal = input.int(9, "MACD Signal Length", group="Confirmation Indicators")
+
+// === Signal Condition Switches ===
+bool_enableAdx = input.bool(true, "Enable ADX Confirmation", group="Signal Conditions")
+bool_enableFilter = input.bool(true, "Enable EMA12 Filter", group="Signal Conditions")
+bool_enableMacd = input.bool(true, "Enable MACD Momentum", group="Signal Conditions")
+bool_enablePullback = input.bool(false, "Require Pullback Confirmation", group="Signal Conditions")
+bool_bypassLongTerm = input.bool(false, "Bypass Long Term Trend", group="Signal Conditions", tooltip="Allow trading when fast tunnel is below slow tunnel - suitable for sideways/weak bounce markets")
+
+// === Multi-Exit Strategy Parameters ===
+bool_useATRStop = input.bool(true, "Use ATR Fixed Stop Loss", group="Exit Methods", tooltip="Traditional ATR-based stop loss and take profit")
+bool_useTrailingStop = input.bool(false, "Use Trailing Stop", group="Exit Methods", tooltip="Dynamic trailing stop that follows price upward")
+bool_useEMA12Cross = input.bool(false, "Use EMA12 Cross Exit", group="Exit Methods", tooltip="Exit when EMA12 crosses below tunnel bands")
+bool_useTechnicalExit = input.bool(false, "Use Technical Multi Exit", group="Exit Methods", tooltip="Multiple technical indicators confirmation")
+bool_useTimeExit = input.bool(false, "Use Time-based Exit", group="Exit Methods", tooltip="Force exit after maximum bars in trade")
+int_maxBarsInTrade = input.int(100, "Max Bars in Trade", group="Exit Methods")
+float_trailingATRMult = input.float(1.5, "Trailing Stop ATR Multiplier", step=0.1, group="Exit Methods")
+
+// === Exit Strategy Parameters ===
+int_atrLength = input.int(14, "ATR Length", group="Exit Strategy")
+float_atrMultiplier = input.float(2.0, "ATR Stop Loss Multiplier", step=0.1, group="Exit Strategy")
+float_riskRewardRatio = input.float(2.0, "Risk:Reward Ratio", step=0.1, group="Exit Strategy")
+
+// --- Global Functions (Must be in global scope) ---
+
+// Input Validation Function
+validateInput(float_input) => not na(float_input) and math.abs(float_input) < 1000000
+
+// Safe Division Function
+safeDivide(float_num, float_denom, float_defaultValue) => float_denom != 0 ? float_num / float_denom : float_defaultValue
+
+// --- Core Indicator Calculations ---
+
+// EMA Tunnel System
+float_emaFast1 = ta.ema(close, int_emaFast1_len)
+float_emaFast2 = ta.ema(close, int_emaFast2_len)
+float_emaSlow1 = ta.ema(close, int_emaSlow1_len)
+float_emaSlow2 = ta.ema(close, int_emaSlow2_len)
+float_emaFilter = ta.ema(close, int_emaFilter_len)
+
+// ADX Trend Strength System - Direct calculation
+[float_diplus, float_diminus, float_adxValue] = ta.dmi(int_adxLength, int_adxLength)
+
+// MACD Momentum System
+[float_macdLine, float_signalLine, float_macdHist] = ta.macd(close, int_macdFast, int_macdSlow, int_macdSignal)
+
+// --- Signal Logic Architecture ---
+
+// Condition 1: Long-Term Trend is Bullish (V1.1: Now optional with bypass)
+bool_longTermBullish = bool_bypassLongTerm ? true : ((float_emaFast1 > float_emaSlow1) and (float_emaFast2 > float_emaSlow2))
+
+// Condition 2: Breakout & Pullback Confirmation (V1.1: Fixed to combinational logic)
+bool_breakoutValid = (close > float_emaFast2) and (close[1] <= float_emaFast2[1])
+bool_pullbackValid = low > float_emaFast1
+bool_entryCondition = bool_enablePullback ? (bool_breakoutValid and bool_pullbackValid) : bool_breakoutValid
+
+// Condition 3: Trend Strength Confirmation
+bool_trendStrong = validateInput(float_adxValue) and float_adxValue > float_adxThreshold
+bool_trendStrengthConfirm = bool_enableAdx ? bool_trendStrong : true
+
+// Condition 4: False Breakout Filter
+bool_filterMovingUp = validateInput(float_emaFilter) and float_emaFilter > float_emaFilter[1]
+bool_priceAboveFilter = close > float_emaFilter
+bool_filterConfirm = bool_enableFilter ? (bool_filterMovingUp and bool_priceAboveFilter) : true
+
+// Condition 5: Momentum Confirmation
+bool_momentumPositive = validateInput(float_macdHist) and float_macdHist > float_macdHist[1]
+bool_momentumConfirm = bool_enableMacd ? bool_momentumPositive : true
+
+// --- Multi-Exit Calculations ---
+
+// 1. ATR Fixed Stop/Take Profit
+float_atrValue = ta.atr(int_atrLength)
+float_atrStopLoss = strategy.position_size > 0 ? strategy.position_avg_price - (float_atrValue * float_atrMultiplier) : na
+float_atrTakeProfit = strategy.position_size > 0 ? strategy.position_avg_price + (float_atrValue * float_atrMultiplier * float_riskRewardRatio) : na
+
+// 2. Dynamic Trailing Stop
+var float float_trailingStop = na
+if strategy.position_size > 0
+    float_newStop = ta.highest(high, 20) - (float_atrValue * float_trailingATRMult)
+    float_trailingStop := na(float_trailingStop) ? float_newStop : math.max(float_trailingStop, float_newStop)
+else
+    float_trailingStop := na
+
+// 3. EMA12 Cross Exit Conditions
+bool_ema12CrossExit = ta.crossunder(float_emaFilter, float_emaFast2) or ta.crossunder(float_emaFilter, float_emaFast1)
+
+// 4. Technical Multi Exit
+bool_macdWeakening = validateInput(float_macdHist) and float_macdHist < float_macdHist[1] and float_macdHist < float_macdHist[2]
+bool_tunnelBreakdown = close < float_emaFast1
+bool_technicalMultiExit = bool_macdWeakening and bool_tunnelBreakdown
+
+// 5. Time-based Exit
+bool_timeExit = strategy.position_size > 0 and (bar_index - strategy.opentrades.entry_bar_index(0)) >= int_maxBarsInTrade
+
+// Combined Long Signal Logic
+bool_longSignal = bool_longTermBullish and bool_entryCondition and bool_trendStrengthConfirm and bool_filterConfirm and bool_momentumConfirm
+
+// --- Priority-based Exit Logic ---
+
+// Entry Logic
+if bool_longSignal
+    strategy.entry("Long", strategy.long)
+
+// Exit Logic with Priority
+if strategy.position_size > 0
+    // Priority 1: ATR Fixed Stop Loss (Risk Control)
+    if bool_useATRStop and close <= float_atrStopLoss
+        strategy.close("Long", comment="ATR Stop Loss")
+    // Priority 2: Technical Multi Exit (Trend Reversal)
+    else if bool_useTechnicalExit and bool_technicalMultiExit
+        strategy.close("Long", comment="Technical Exit")
+    // Priority 3: EMA12 Cross Exit (Trend End)
+    else if bool_useEMA12Cross and bool_ema12CrossExit
+        strategy.close("Long", comment="EMA12 Cross Exit")
+    // Priority 4: Trailing Stop (Profit Protection)
+    else if bool_useTrailingStop and not na(float_trailingStop) and close <= float_trailingStop
+        strategy.close("Long", comment="Trailing Stop")
+    // Priority 5: Time Exit (Force Close)
+    else if bool_useTimeExit and bool_timeExit
+        strategy.close("Long", comment="Time Exit")
+
+// ATR Take Profit (if enabled)
+if bool_useATRStop and strategy.position_size > 0 and close >= float_atrTakeProfit
+    strategy.close("Long", comment="ATR Take Profit")
+
+// --- Visualization Components ---
+
+// Color Definitions
+color_fastTunnel = color.new(color.blue, 85)
+color_slowTunnel = color.new(color.orange, 90)
+color_fastLine1 = color.new(color.blue, 0)
+color_fastLine2 = color.new(color.blue, 20)
+color_slowLine1 = color.new(color.orange, 0)
+color_slowLine2 = color.new(color.orange, 20)
+color_filterLine = color.new(color.gray, 50)
+color_signalUp = color.new(color.green, 20)
+color_backgroundBullish = color.new(color.green, 95)
+
+// Plot EMA Lines
+plot_emaFast1 = plot(float_emaFast1, color=color_fastLine1, linewidth=1, title="Fast EMA 144")
+plot_emaFast2 = plot(float_emaFast2, color=color_fastLine2, linewidth=1, title="Fast EMA 169")
+plot_emaSlow1 = plot(float_emaSlow1, color=color_slowLine1, linewidth=1, title="Slow EMA 576")
+plot_emaSlow2 = plot(float_emaSlow2, color=color_slowLine2, linewidth=1, title="Slow EMA 676")
+plot_emaFilter = plot(float_emaFilter, color=color_filterLine, linewidth=2, title="Filter EMA 12")
+
+// Tunnel Fill Areas
+fill(plot_emaFast1, plot_emaFast2, color=color_fastTunnel, title="Fast Tunnel Fill")
+fill(plot_emaSlow1, plot_emaSlow2, color=color_slowTunnel, title="Slow Tunnel Fill")
+
+// Long Signal Markers
+plotshape(bool_longSignal, "Long Entry Signal", shape.triangleup, location.belowbar, color_signalUp, size=size.small)
+
+// --- Exit Visualization ---
+
+// ATR Stop/Take Profit Lines
+plot(bool_useATRStop and strategy.position_size > 0 ? float_atrStopLoss : na, "ATR Stop Loss", color.red, 1, plot.style_stepline)
+plot(bool_useATRStop and strategy.position_size > 0 ? float_atrTakeProfit : na, "ATR Take Profit", color.green, 1, plot.style_stepline)
+
+// Trailing Stop Line
+plot(bool_useTrailingStop and strategy.position_size > 0 ? float_trailingStop : na, "Trailing Stop", color.orange, 2, plot.style_stepline)
+
+// Exit Signal Markers
+plotshape(bool_useEMA12Cross and bool_ema12CrossExit, "EMA12 Cross Exit", shape.xcross, location.abovebar, color.orange, size=size.small)
+plotshape(bool_useTechnicalExit and bool_technicalMultiExit, "Technical Exit", shape.diamond, location.abovebar, color.purple, size=size.small)
+plotshape(bool_useTimeExit and bool_timeExit, "Time Exit", shape.square, location.abovebar, color.gray, size=size.small)
+
+// ADX Strength Background
+bgcolor(bool_trendStrong and bool_enableAdx ? color_backgroundBullish : na, title="ADX Strength Background")
+
+// --- Information Panel ---
+
+// Condition Status for Debugging (V1.1: Enhanced with bypass status)
+string_bypassStatus = bool_bypassLongTerm ? "BYPASS" : "STRICT"
+string_enabledExits = (bool_useATRStop ? "ATR " : "") + (bool_useTrailingStop ? "TRAIL " : "") + (bool_useEMA12Cross ? "EMA12 " : "") + (bool_useTechnicalExit ? "TECH " : "") + (bool_useTimeExit ? "TIME" : "")
+string_exitStatus = "Exits: " + (string_enabledExits == "" ? "None" : string_enabledExits)
+string_conditionStatus = "LT:" + str.tostring(bool_longTermBullish) + "(" + string_bypassStatus + ") BO:" + str.tostring(bool_entryCondition) + " ADX:" + str.tostring(bool_trendStrengthConfirm) + " FLT:" + str.tostring(bool_filterConfirm) + " MOM:" + str.tostring(bool_momentumConfirm)
+
+// Display Information
+if barstate.islast
+    var label label_info = label.new(na, na, "", style=label.style_label_left, color=color.new(color.white, 20), textcolor=color.black, size=size.normal)
+    label.set_xy(label_info, bar_index + 5, high)
+    label.set_text(label_info, "Vegas Tunnel XZ Strategy v1.2\nADX:" + str.tostring(float_adxValue, "#.##") + "\n" + string_conditionStatus + "\n" + string_exitStatus)
+
+// --- Alerts ---
+alertcondition(bool_longSignal, "Vegas Tunnel Long Signal", "Vegas Tunnel XZ v1.2: Long signal generated - All 5 conditions met!")
+alertcondition(bool_trendStrong, "Vegas Tunnel ADX Strong", "Vegas Tunnel XZ v1.2: ADX above threshold - Strong trend detected!")
