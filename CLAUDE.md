@@ -14,6 +14,19 @@ This is a professional cryptocurrency trading strategy backtesting system built 
 
 ⚠️ **Important**: All command-line instructions and automated scripts must use Windows-compatible syntax. Use PowerShell commands when cross-platform compatibility is needed.
 
+### 🚀 Vegas Tunnel XZ 项目状态
+
+**当前版本**: Vegas Tunnel XZ Strategy v1.2 ✅  
+**文件位置**: `pinescript/indicators/trend/Vegas_Tunnel_XZ_v1_2_strategy.pine`  
+**项目状态**: 开发完成，功能完整  
+**备份策略**: 不再生成backup文件，依赖Git版本控制
+
+**核心功能**:
+- 🎯 五条EMA隧道系统 + ADX + MACD多重确认
+- 🛡️ 5种可选退出机制 (ATR/跟踪/EMA12/技术/时间)
+- ⚙️ 完全可配置参数，适应不同市场环境
+- 📊 策略形式，$500初始资金，20%仓位，0.02%手续费
+
 ### 📁 Current Project Structure
 
 ```
