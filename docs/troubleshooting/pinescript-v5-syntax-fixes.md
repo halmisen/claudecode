@@ -229,13 +229,108 @@ float_adaptive_ema = bool_trendingMarket ? float_ema_fast : float_ema_slow
 - 确保变量作用域正确
 - 彻底测试所有功能
 
+## Four Swords v1.6 单仓位管理开发经验
+
+### 新增错误类型: 变量作用域问题
+
+**错误场景**: Four Swords v1.6 单仓位管理开发
+**错误信息**:
+```
+Undeclared identifier 'bool_hasPosition'
+Undeclared identifier 'bool_isLong' 
+Undeclared identifier 'bool_isShort'
+```
+
+**问题原因**:
+```pinescript
+// 错误：变量在使用前未声明
+// 第248行开始使用变量
+if (bool_hasPosition and bool_isLong and bool_shortSignalFiltered)
+    // ...
+
+// 但变量声明在第294行
+// === 交易执行部分 ===
+bool_hasPosition = strategy.position_size != 0
+bool_isLong = strategy.position_size > 0
+bool_isShort = strategy.position_size < 0
+```
+
+**解决方案**:
+```pinescript
+// ✅ 修复：将变量声明移到使用前
+// --- Enhanced State Management ---  (第226行)
+var bool bool_waitLongExitBySqueeze = false
+var bool bool_waitShortExitBySqueeze = false
+var float float_longStopPrice = na
+var float float_shortStopPrice = na
+var float float_entryPrice = na
+
+// --- Position State Variables ---  (第233行)
+bool_hasPosition = strategy.position_size != 0
+bool_isLong = strategy.position_size > 0
+bool_isShort = strategy.position_size < 0
+```
+
+### 经验教训: 复杂策略的变量组织
+
+**问题根源**:
+1. **开发顺序错误**: 先写使用逻辑，后补声明
+2. **代码重构**: 移动代码块时未同步移动相关声明
+3. **作用域规划**: 没有提前规划变量的作用域和生命周期
+
+**最佳实践**:
+```pinescript
+// ✅ 推荐的变量声明顺序
+// 1. 输入参数
+// 2. 市场状态检测变量
+// 3. 核心计算变量 
+// 4. 状态管理变量 ← 关键：要放在使用前
+// 5. 信号生成逻辑
+// 6. 交易执行逻辑
+```
+
+### 单仓位管理模式的变量设计
+
+**状态变量模式**:
+```pinescript
+// 持仓状态检测 (每根K线重新计算)
+bool_hasPosition = strategy.position_size != 0
+bool_isLong = strategy.position_size > 0
+bool_isShort = strategy.position_size < 0
+
+// 策略状态维护 (使用var持久化)
+var bool bool_waitLongExitBySqueeze = false
+var bool bool_waitShortExitBySqueeze = false
+var float float_longStopPrice = na
+var float float_shortStopPrice = na
+```
+
+**优势**:
+- 清晰的持仓状态检测
+- 持久化的策略状态管理
+- 支持复杂的单仓位切换逻辑
+
+### 代码重构时的检查清单
+
+**变量声明检查**:
+- [ ] 所有变量在第一次使用前已声明
+- [ ] `var`变量用于需要跨K线保持的状态
+- [ ] 普通变量用于每根K线重新计算的值
+- [ ] 变量命名遵循类型前缀规范
+
+**作用域管理**:
+- [ ] 全局状态变量声明在策略顶部
+- [ ] 计算变量紧邻计算逻辑
+- [ ] 临时变量在最小作用域内声明
+
 ## 总结
 
-通过修复Four Swords Strategy v1.5的语法错误，我们学到了Pine Script v5的严格要求：
+通过修复Four Swords Strategy v1.5和v1.6的语法错误，我们学到了Pine Script v5的严格要求：
 
 1. **类型安全优先**: series vs simple类型区分严格
 2. **变量声明规范**: 必须预先声明并遵循命名规范  
 3. **语法简洁要求**: 单行语句，避免复杂的多行结构
 4. **函数参数准确**: 使用正确的Pine Script v5 API
+5. **作用域管理**: 变量必须在使用前声明，注意声明顺序 ← **新增**
 
 这些经验将帮助我们在未来的Pine Script开发中避免类似问题，写出更稳定、更高效的交易策略代码。

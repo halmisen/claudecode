@@ -1,0 +1,36 @@
+{
+  "agents": {
+    "pine-script-specialist": {
+      "enabled": true,
+      "path": "agents/pine-script-specialist.md",
+      "autoActivate": {
+        "keywords": [
+          "pine script", "pinescript", "tradingview", "strategy", "indicator",
+          "sqzmom", "wavetrend", "squeeze momentum", "pine", ".pine",
+          "compilation error", "syntax error", "series vs simple",
+          "strategy.entry", "ternary operator", "function declaration"
+        ],
+        "fileExtensions": [".pine"],
+        "directories": ["pinescript/", "pinescript/strategies/", "pinescript/indicators/"]
+      },
+      "capabilities": [
+        "pine-script-syntax-validation",
+        "trading-indicator-implementation", 
+        "strategy-development",
+        "error-prevention",
+        "performance-optimization"
+      ],
+      "integration": {
+        "standards": "docs/standards/pine-script-standards.md",
+        "templates": "docs/templates/",
+        "workflows": "docs/workflows/pine-to-python-conversion.md"
+      }
+    }
+  },
+  "projectSettings": {
+    "pinescriptPath": "pinescript/",
+    "standardsPath": "docs/standards/pine-script-standards.md",
+    "backtraderPath": "backtester/",
+    "defaultPineVersion": 5
+  }
+}

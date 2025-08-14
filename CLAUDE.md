@@ -306,9 +306,10 @@ Strategies support different market types through configuration:
 
 ## Specialized Agents Configuration
 
-This project uses Claude Code specialized agents (wshobson/agents) for enhanced analysis capabilities:
+This project uses Claude Code specialized agents for enhanced development capabilities:
 
 ### Core Trading Agents
+- **pine-script-specialist**: Pine Script v5 development, syntax validation, and compilation error prevention ⭐ NEW
 - **quant-analyst**: Quantitative strategy analysis, backtesting optimization, performance metrics evaluation
 - **risk-manager**: Portfolio risk assessment, drawdown analysis, position sizing optimization
 - **data-scientist**: Market data pattern analysis, statistical validation, correlation studies
@@ -317,12 +318,20 @@ This project uses Claude Code specialized agents (wshobson/agents) for enhanced 
 - **data-engineer**: ETL pipeline optimization, data preprocessing automation
 - **ml-engineer**: Machine learning model development for predictive signals (optional)
 
+### Pine Script Specialist Agent Features ⭐
+- **Auto-activation**: Triggers on keywords like "pine script", "tradingview", "strategy", "SQZMOM", "WaveTrend"
+- **Syntax validation**: Prevents Pine Script v5 compilation errors before they happen
+- **Standards compliance**: Always references `docs/standards/pine-script-standards.md`
+- **Error prevention**: Catches series vs simple type conflicts, undeclared variables, etc.
+- **Location**: `.claude/agents/pine-script-specialist.md` (project-tracked for team collaboration)
+
 ### Agent Usage
 - **Auto-invocation**: Claude automatically selects appropriate agents based on task context
-- **Explicit invocation**: Mention agent name directly (e.g., "Ask quant-analyst to analyze strategy performance")
-- **Installation**: Agents located in `~/.claude/agents/` (local configuration, not in project git)
+- **Explicit invocation**: Mention agent name directly (e.g., "Ask pine-script-specialist to fix this syntax error")
+- **Installation**: Agents located in `~/.claude/agents/` (global) and `.claude/agents/` (project-local)
 
 ### Preferred Agent Workflows
+- Pine Script development → **pine-script-specialist**
 - Strategy optimization → **quant-analyst**
 - Risk analysis → **risk-manager** 
 - Data quality issues → **data-scientist**

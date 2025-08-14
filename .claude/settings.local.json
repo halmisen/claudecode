@@ -58,6 +58,9 @@
       "Bash(del:*)"
     ],
     "deny": [],
-    "defaultMode": "acceptEdits"
+    "defaultMode": "acceptEdits",
+    "additionalDirectories": [
+      "C:\\Users\\fiver\\.claude\\agents"
+    ]
   }
 }

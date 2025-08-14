@@ -230,16 +230,40 @@ var float float_longStopPrice = na
 var float float_shortStopPrice = na
 var float float_entryPrice = na
 
-// 决定退出条件类型
+// --- Position State Variables ---
+bool_hasPosition = strategy.position_size != 0
+bool_isLong = strategy.position_size > 0
+bool_isShort = strategy.position_size < 0
+
+// 决定退出条件类型 (适配单仓位管理)
 if (bool_longSignalFiltered and strategy.position_size == 0)
     bool_waitLongExitBySqueeze := bool_momentumAccelerating and (float_momentum > 0)
+    bool_waitShortExitBySqueeze := false  // 重置空头状态
     float_entryPrice := close
     float_longStopPrice := bool_useStopLoss ? close - (float_atrValue * float_atrMultiplier) : na
+    float_shortStopPrice := na
 
 if (bool_shortSignalFiltered and strategy.position_size == 0)
     bool_waitShortExitBySqueeze := bool_momentumAccelerating and (float_momentum < 0)
+    bool_waitLongExitBySqueeze := false  // 重置多头状态
     float_entryPrice := close
     float_shortStopPrice := bool_useStopLoss ? close + (float_atrValue * float_atrMultiplier) : na
+    float_longStopPrice := na
+
+// 反向信号时的状态更新
+if (bool_hasPosition and bool_isLong and bool_shortSignalFiltered)
+    bool_waitShortExitBySqueeze := bool_momentumAccelerating and (float_momentum < 0)
+    bool_waitLongExitBySqueeze := false
+    float_entryPrice := close
+    float_shortStopPrice := bool_useStopLoss ? close + (float_atrValue * float_atrMultiplier) : na
+    float_longStopPrice := na
+
+if (bool_hasPosition and bool_isShort and bool_longSignalFiltered)
+    bool_waitLongExitBySqueeze := bool_momentumAccelerating and (float_momentum > 0)
+    bool_waitShortExitBySqueeze := false
+    float_entryPrice := close
+    float_longStopPrice := bool_useStopLoss ? close - (float_atrValue * float_atrMultiplier) : na
+    float_shortStopPrice := na
 
 // --- Enhanced Exit Logic ---
 // 动量减弱退出
@@ -259,41 +283,75 @@ bool_shortStopHit = bool_useStopLoss and strategy.position_size < 0 and not na(f
 bool_longExitCondition = bool_exitLongWeak or bool_exitLongSqueeze or bool_longStopHit or bool_timeExitNeeded
 bool_shortExitCondition = bool_exitShortWeak or bool_exitShortSqueeze or bool_shortStopHit or bool_timeExitNeeded
 
-// 重置状态
-if (bool_longExitCondition or bool_shortExitCondition)
+// 重置状态 (仅在实际平仓后重置)
+if (strategy.position_size == 0 and (bool_waitLongExitBySqueeze or bool_waitShortExitBySqueeze))
     bool_waitLongExitBySqueeze := false
     bool_waitShortExitBySqueeze := false
     float_longStopPrice := na
     float_shortStopPrice := na
     float_entryPrice := na
 
-// === 交易执行 ===
+// === 交易执行 (Single Position Management) ===
 
-// --- 入场逻辑 ---
-if (bool_longSignalFiltered)
-    strategy.entry("Long", strategy.long, qty=float_positionSize, comment="4S Long O")
+// --- 先处理退出逻辑 (优先级最高) ---
+if (bool_hasPosition)
+    string_exitComment = ""
+    bool_shouldExit = false
+    
+    if (bool_isLong and bool_longExitCondition)
+        bool_shouldExit := true
+        if (bool_longStopHit)
+            string_exitComment := "Long Stop Loss"
+        else if (bool_timeExitNeeded)
+            string_exitComment := "Long Time Exit"
+        else
+            string_exitComment := "Long Signal Exit"
+    
+    if (bool_isShort and bool_shortExitCondition)
+        bool_shouldExit := true
+        if (bool_shortStopHit)
+            string_exitComment := "Short Stop Loss"
+        else if (bool_timeExitNeeded)
+            string_exitComment := "Short Time Exit"
+        else
+            string_exitComment := "Short Signal Exit"
+    
+    // 执行退出
+    if (bool_shouldExit)
+        strategy.close_all(comment=string_exitComment)
 
-if (bool_shortSignalFiltered)
-    strategy.entry("Short", strategy.short, qty=float_positionSize, comment="4S Short O")
+// --- 反向信号强制平仓并开新仓 ---
+if (bool_hasPosition and bool_isLong and bool_shortSignalFiltered)
+    strategy.close_all(comment="Long to Short Reversal")
+    strategy.entry("Short", strategy.short, qty=float_positionSize, comment="4S Short O (Reversal)")
 
-// --- 出场逻辑 ---
-if (bool_longExitCondition)
-    string_exitComment = bool_longStopHit ? "Stop Loss" : bool_timeExitNeeded ? "Time Exit" : "Signal Exit"
-    strategy.close("Long", comment=string_exitComment)
+if (bool_hasPosition and bool_isShort and bool_longSignalFiltered)
+    strategy.close_all(comment="Short to Long Reversal")
+    strategy.entry("Long", strategy.long, qty=float_positionSize, comment="4S Long O (Reversal)")
 
-if (bool_shortExitCondition)
-    string_exitComment = bool_shortStopHit ? "Stop Loss" : bool_timeExitNeeded ? "Time Exit" : "Signal Exit"
-    strategy.close("Short", comment=string_exitComment)
+// --- 新入场逻辑 (仅在无持仓时) ---
+if (not bool_hasPosition)
+    if (bool_longSignalFiltered)
+        strategy.entry("Long", strategy.long, qty=float_positionSize, comment="4S Long O")
+    else if (bool_shortSignalFiltered)
+        strategy.entry("Short", strategy.short, qty=float_positionSize, comment="4S Short O")
 
 // === 可视化 ===
 
-// 信号标记 (Different colors for signal types)
-plotshape(bool_highQualityLongSignal, title="High Quality Long", location=location.belowbar, color=color.new(color.green, 0), style=shape.triangleup, size=size.normal)
-plotshape(bool_nearMissLong, title="Near Miss Long", location=location.belowbar, color=color.new(color.lime, 0), style=shape.triangleup, size=size.small)
-plotshape(bool_highQualityShortSignal, title="High Quality Short", location=location.abovebar, color=color.new(color.red, 0), style=shape.triangledown, size=size.normal)
-plotshape(bool_nearMissShort, title="Near Miss Short", location=location.abovebar, color=color.new(color.maroon, 0), style=shape.triangledown, size=size.small)
-plotshape(bool_longExitCondition and strategy.position_size > 0, title="Exit Long", location=location.belowbar, color=color.new(color.gray, 0), style=shape.xcross, size=size.tiny)
-plotshape(bool_shortExitCondition and strategy.position_size < 0, title="Exit Short", location=location.abovebar, color=color.new(color.gray, 0), style=shape.xcross, size=size.tiny)
+// 信号标记 (Enhanced with position awareness)
+// 新入场信号
+plotshape(bool_highQualityLongSignal and strategy.position_size == 0, title="New Long Entry", location=location.belowbar, color=color.new(color.green, 0), style=shape.triangleup, size=size.normal)
+plotshape(bool_nearMissLong and strategy.position_size == 0, title="New Long Entry (Near Miss)", location=location.belowbar, color=color.new(color.lime, 0), style=shape.triangleup, size=size.small)
+plotshape(bool_highQualityShortSignal and strategy.position_size == 0, title="New Short Entry", location=location.abovebar, color=color.new(color.red, 0), style=shape.triangledown, size=size.normal)
+plotshape(bool_nearMissShort and strategy.position_size == 0, title="New Short Entry (Near Miss)", location=location.abovebar, color=color.new(color.maroon, 0), style=shape.triangledown, size=size.small)
+
+// 反向信号
+plotshape(bool_longSignalFiltered and bool_isShort, title="Reversal to Long", location=location.belowbar, color=color.new(color.blue, 0), style=shape.triangleup, size=size.large)
+plotshape(bool_shortSignalFiltered and bool_isLong, title="Reversal to Short", location=location.abovebar, color=color.new(color.purple, 0), style=shape.triangledown, size=size.large)
+
+// 退出信号
+plotshape(bool_longExitCondition and bool_isLong, title="Exit Long", location=location.belowbar, color=color.new(color.gray, 0), style=shape.xcross, size=size.tiny)
+plotshape(bool_shortExitCondition and bool_isShort, title="Exit Short", location=location.abovebar, color=color.new(color.gray, 0), style=shape.xcross, size=size.tiny)
 
 // EMA线条 (Conditional)
 plot(bool_emaFilterActive ? float_emaFastLineFilter : na, "EMA Fast", color.new(color.blue, 30), 1)
@@ -305,20 +363,26 @@ plot(strategy.position_size < 0 and not na(float_shortStopPrice) ? float_shortSt
 
 // === Enhanced Status Panel ===
 if barstate.islast
-    var table table_status = table.new(position.top_right, 2, 12, border_width=1)
+    var table table_status = table.new(position.top_right, 2, 13, border_width=1)
     
     // 表头
-    table.cell(table_status, 0, 0, "4S v1.6 Optimized", bgcolor=color.new(color.purple, 10), text_color=color.white, text_size=size.normal)
+    table.cell(table_status, 0, 0, "4S v1.6 Single Position", bgcolor=color.new(color.purple, 10), text_color=color.white, text_size=size.normal)
     table.cell(table_status, 1, 0, "Value", bgcolor=color.new(color.purple, 10), text_color=color.white)
     
+    // 当前持仓状态
+    table.cell(table_status, 0, 1, "Position", text_color=color.black)
+    string_positionStatus = strategy.position_size == 0 ? "NONE" : (strategy.position_size > 0 ? "LONG" : "SHORT")
+    color_positionBg = strategy.position_size == 0 ? color.new(color.gray, 70) : (strategy.position_size > 0 ? color.new(color.green, 70) : color.new(color.red, 70))
+    table.cell(table_status, 1, 1, string_positionStatus, bgcolor=color_positionBg, text_color=color.white)
+    
     // 信号模式
-    table.cell(table_status, 0, 1, "Signal Mode", text_color=color.black)
-    table.cell(table_status, 1, 1, string_signalMode, bgcolor=color.new(color.blue, 70), text_color=color.white)
+    table.cell(table_status, 0, 2, "Signal Mode", text_color=color.black)
+    table.cell(table_status, 1, 2, string_signalMode, bgcolor=color.new(color.blue, 70), text_color=color.white)
     
     // 压缩状态
     string_sqzStatus = bool_sqzOn ? "ON" : bool_sqzOff ? "OFF" : "NO"
-    table.cell(table_status, 0, 2, "Squeeze", text_color=color.black)
-    table.cell(table_status, 1, 2, string_sqzStatus, bgcolor=bool_sqzOn ? color.new(color.red, 70) : bool_sqzOff ? color.new(color.green, 70) : color.new(color.gray, 70))
+    table.cell(table_status, 0, 3, "Squeeze", text_color=color.black)
+    table.cell(table_status, 1, 3, string_sqzStatus, bgcolor=bool_sqzOn ? color.new(color.red, 70) : bool_sqzOff ? color.new(color.green, 70) : color.new(color.gray, 70))
     
     // 动量状态
     table.cell(table_status, 0, 3, "Momentum", text_color=color.black)  

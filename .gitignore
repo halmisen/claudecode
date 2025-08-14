@@ -108,6 +108,9 @@ config/.env*
 # 防止子目录中创建重复的 .claude 目录
 */.claude/
 
+# Note: Project-root .claude/ directory (agent configurations) should be tracked
+# Only ignore local settings and subdirectory .claude/ folders
+
 # AI 对话记录和临时文档
 GEMINI.md
 

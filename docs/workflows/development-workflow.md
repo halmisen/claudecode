@@ -37,6 +37,8 @@ Before testing in TradingView, always verify:
 - [ ] Strategy declaration includes proper `default_qty_type` and `default_qty_value`
 - [ ] Position sizing uses correct Pine Script v5 API
 - [ ] Alert conditions use valid variable references
+- [ ] Variable declaration order: inputs → calculations → state management → execution
+- [ ] State variables (`var`) declared before position management logic
 
 ### Post-Compilation Validation Checklist
 
@@ -59,6 +61,52 @@ After successful compilation in TradingView:
 - [ ] Edge cases handled properly (division by zero, etc.)
 - [ ] State management works correctly across bars
 - [ ] Memory usage is efficient
+
+## Single Position Management Strategies
+
+### Additional Development Requirements
+
+For strategies implementing single position management (like Four Swords v1.6):
+
+#### Variable Declaration Pattern
+```pinescript
+// 1. Input parameters
+// 2. Market state detection
+// 3. Core calculations
+// 4. State management variables (CRITICAL: before usage)
+var bool bool_waitLongExit = false
+var bool bool_waitShortExit = false
+// 5. Position state variables
+bool_hasPosition = strategy.position_size != 0
+bool_isLong = strategy.position_size > 0
+bool_isShort = strategy.position_size < 0
+```
+
+#### Single Position Logic Checklist
+- [ ] Only one position allowed at any time
+- [ ] Position state variables declared before use
+- [ ] Reverse signal handling (close + new entry)
+- [ ] State reset on position close
+- [ ] Exit logic has higher priority than entry logic
+- [ ] Clear visual distinction between entry types (new vs reversal)
+
+#### Trading Execution Priority
+1. **Exit Logic** (highest priority): Stop loss, signal exit, time exit
+2. **Reversal Signals** (medium priority): Close current + open opposite
+3. **New Entry** (lowest priority): Only when no position exists
+
+#### State Management Verification
+- [ ] `var` variables maintain state across bars
+- [ ] Position detection variables recalculate each bar
+- [ ] State reset only occurs after actual position close
+- [ ] Reverse signal updates all relevant state variables
+- [ ] No conflicting state conditions
+
+#### Visual Feedback Requirements
+- [ ] Different colors for new entry vs reversal signals
+- [ ] Position status clearly displayed in status panel
+- [ ] Exit signals visually distinguishable
+- [ ] Stop loss lines displayed when active
 
 ### File Organization
 
