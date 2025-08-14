@@ -1,12 +1,12 @@
-# 项目文件整理与文档更新执行文档
+# 文件路径优化任务执行文档
 
 ## 📋 当前项目状态
 
-**当前主力**: Four Swords Swing Strategy v1.4  
-**文件位置**: `pinescript/strategies/oscillator/Four_Swords_Swing_Strategy_v1_4.pine`  
-**项目状态**: ✅ v1.4开发成功 - 需要整理文档结构  
-**最后更新**: 2025-08-13  
-**任务类型**: 🗂️ **文件整理与文档同步**
+**任务类型**: 🔧 **文件路径标准化**  
+**优先级**: P1 - 文档一致性维护  
+**执行模式**: Gemini自动化批量更新  
+**基准文档**: claudecode\CLAUDE.md (已更新为标准)  
+**最后更新**: 2025-08-14  
 
 ---
 
@@ -14,157 +14,121 @@
 
 ```yaml
 plan:
-  version: "2025-08-13-09"
-  context: "Four Swords v1.4成功后的文件整理与文档更新"
-  priority: "P1 - 文档结构优化"
+  version: "2025-08-14-01"
+  context: "基于CLAUDE.md更新的文档结构，统一项目内所有文件路径引用"
+  priority: "P1 - 确保文档路径一致性"
   status: "待执行"
   jobs:
-    - id: "create_archive_directories"
-      desc: "创建归档和策略文档目录结构"
+    - id: "update_readme_md_paths"
+      desc: "更新README.md中的文档路径引用"
       cmd: |
-        mkdir -p docs/archived docs/strategies
+        # 将旧路径替换为新的分类路径
+        sed -i 's|docs/pine-script-standards\.md|docs/standards/pine-script-standards.md|g' README.md && \
+        sed -i 's|docs/backtrader-quickstart\.md|docs/guides/backtrader-quickstart.md|g' README.md && \
+        sed -i 's|docs/v5_usage_guidelines\.md|docs/guides/v5-usage.md|g' README.md
       requires: []
-      produces: ["docs/archived/", "docs/strategies/"]
+      produces: ["更新的README.md路径引用"]
       
-    - id: "move_vegas_tunnel_files"
-      desc: "移动Vegas Tunnel相关文档到归档目录"
+    - id: "update_workflow_docs_internal_links"
+      desc: "更新workflows目录内文档的内部链接"
       cmd: |
-        mv "CLAUDE_GEMINI_MEGA_COLLABORATION_EXECUTION_MASTER_DOCUMENT.md" "docs/archived/vegas_tunnel_collaboration.md" && \
-        mv "Claude_Gemini_协作工作流说明书.md" "docs/archived/claude_gemini_workflow.md" && \
-        mv "VEGAS_TUNNEL_ROADMAP.md" "docs/archived/vegas_tunnel_roadmap.md" && \
-        mv "Vegas tunnel XZ plan.md" "docs/archived/vegas_tunnel_plan.md"
-      requires: ["create_archive_directories"]
-      produces: ["docs/archived/*.md"]
-      
-    - id: "organize_strategy_docs"
-      desc: "整理四剑客策略文档到策略目录"
-      cmd: |
-        mv docs/四剑客波段策略*.md docs/strategies/
-      requires: ["create_archive_directories"]
-      produces: ["docs/strategies/四剑客*.md"]
-      
-    - id: "update_gemini_md"
-      desc: "更新GEMINI.md反映v1.4状态和新项目结构"
-      status: "需要手动更新"
-      produces: ["GEMINI.md"]
-      
-    - id: "update_readme_md"
-      desc: "更新README.md突出Four Swords v1.4为主力策略"
-      status: "需要手动更新"
-      produces: ["README.md"]
-      
-    - id: "verify_claude_md"
-      desc: "验证CLAUDE.md的v1.4状态更新是否完整"
-      cmd: |
-        grep -n "v1.4" CLAUDE.md && \
-        grep -n "Four_Swords_Swing_Strategy_v1_4" CLAUDE.md
+        # 更新pine-to-python-conversion.md内的路径引用
+        sed -i 's|docs/pine-script-standards\.md|docs/standards/pine-script-standards.md|g' docs/workflows/pine-to-python-conversion.md && \
+        sed -i 's|docs/BACKTRADER_RETURNS_FIX\.md|docs/troubleshooting/backtrader-returns-fix.md|g' docs/workflows/pine-to-python-conversion.md
       requires: []
-      produces: ["验证报告"]
+      produces: ["更新的workflow文档内部链接"]
       
-    - id: "clean_root_directory"
-      desc: "清理根目录，移除剩余的临时文件"
+    - id: "scan_and_update_guides_links"
+      desc: "扫描guides目录文档并更新过时的路径引用"
       cmd: |
-        ls -la | grep -E "\.tmp$|\.bak$|~$" | awk '{print $9}' | xargs -r rm -f
-      requires: ["move_vegas_tunnel_files"]
-      produces: ["清洁的根目录"]
+        # 更新guides目录内文档的路径引用
+        find docs/guides/ -name "*.md" -exec sed -i 's|docs/pine-script-standards\.md|docs/standards/pine-script-standards.md|g' {} \; && \
+        find docs/guides/ -name "*.md" -exec sed -i 's|docs/development-workflow\.md|docs/workflows/development-workflow.md|g' {} \;
+      requires: []
+      produces: ["更新的guides文档链接"]
       
-    - id: "git_commit_changes"
-      desc: "提交文件整理和文档更新结果"
+    - id: "update_troubleshooting_docs_refs"
+      desc: "更新troubleshooting目录文档的路径引用"
+      cmd: |
+        # 更新troubleshooting目录内的文档引用
+        find docs/troubleshooting/ -name "*.md" -exec sed -i 's|docs/backtrader-quickstart\.md|docs/guides/backtrader-quickstart.md|g' {} \; && \
+        find docs/troubleshooting/ -name "*.md" -exec sed -i 's|docs/v5_usage_guidelines\.md|docs/guides/v5-usage.md|g' {} \;
+      requires: []
+      produces: ["更新的troubleshooting文档引用"]
+      
+    - id: "update_docs_readme_index"
+      desc: "更新docs/README.md的文档索引，反映新的目录结构"
+      cmd: |
+        # 重新生成docs/README.md的目录索引
+        echo "# 项目文档索引
+
+## 🔄 工作流程 (核心)
+- [Pine Script到Python转换流程](workflows/pine-to-python-conversion.md)
+- [TradingView回测指南](workflows/tradingview-testing-guide.md)  
+- [开发工作流程](workflows/development-workflow.md)
+
+## 📏 标准规范
+- [Pine Script编码标准](standards/pine-script-standards.md)
+- [交易参数标准](standards/trading-parameters.md)
+
+## 📖 使用指南
+- [Backtrader快速入门](guides/backtrader-quickstart.md)
+- [Backtrader架构指南](guides/backtrader-architecture.md)
+- [Backtrader参数参考](guides/backtrader-parameters.md)
+- [V5使用指南](guides/v5-usage.md)
+- [上下文管理](guides/context-management.md)
+
+## 🔧 问题修复
+- [Backtrader返回值修复](troubleshooting/backtrader-returns-fix.md)
+- [V5开发日志](troubleshooting/v5-development-log.md)
+- [V4优化日志](troubleshooting/v4-optimization-log.md)
+
+## 📝 代码模板
+- [Kelly准则模板](templates/kelly-criterion.pine)
+- [策略配置模板](templates/strategy-config.pine)" > docs/README.md
+      requires: ["update_workflow_docs_internal_links"]
+      produces: ["更新的docs/README.md索引"]
+      
+    - id: "scan_python_files_for_doc_refs"
+      desc: "扫描Python文件中的文档路径引用并更新"
+      cmd: |
+        # 扫描backtester目录的Python文件，更新文档引用
+        find backtester/ -name "*.py" -exec sed -i 's|docs/v5_usage_guidelines\.md|docs/guides/v5-usage.md|g' {} \; && \
+        find backtester/ -name "*.py" -exec sed -i 's|docs/development-workflow\.md|docs/workflows/development-workflow.md|g' {} \;
+      requires: []
+      produces: ["更新的Python文件文档引用"]
+      
+    - id: "verify_all_links_accessible"
+      desc: "验证所有更新后的文档链接可访问性"
+      cmd: |
+        # 验证文档链接的有效性
+        echo "验证文档路径..." && \
+        ls -la docs/standards/pine-script-standards.md && \
+        ls -la docs/workflows/pine-to-python-conversion.md && \
+        ls -la docs/guides/backtrader-quickstart.md && \
+        ls -la docs/troubleshooting/backtrader-returns-fix.md && \
+        echo "所有关键文档路径验证完成"
+      requires: ["update_readme_md_paths", "update_workflow_docs_internal_links", "update_docs_readme_index"]
+      produces: ["文档路径验证报告"]
+      
+    - id: "commit_path_updates"
+      desc: "提交所有文件路径更新"
       cmd: |
         git add . && \
-        git commit -m "docs: Organize project files and update documentation for Four Swords v1.4 focus
+        git commit -m "docs: 统一文件路径引用，基于CLAUDE.md更新的目录结构
 
-- Archive Vegas Tunnel XZ collaboration documents to docs/archived/
-- Move Four Swords strategy documentation to docs/strategies/
-- Update project documentation to reflect v1.4 as current main strategy
-- Clean up root directory structure for better organization
+- 更新README.md中的文档链接路径
+- 统一workflows/guides/troubleshooting目录内部引用  
+- 重新生成docs/README.md索引反映新结构
+- 更新Python文件中的文档路径引用
+- 验证所有文档链接可访问性
 
-🤖 Generated with Claude Code and Gemini collaboration" && \
-        git push
-      requires: ["move_vegas_tunnel_files", "organize_strategy_docs", "clean_root_directory"]
-      produces: ["Git commit"]
+🤖 Generated with Claude Code
+
+Co-Authored-By: Gemini <gemini@google.com>"
+      requires: ["verify_all_links_accessible"]
+      produces: ["Git提交记录"]
 ```
-
----
-
-## 🎯 文档更新指引
-
-### **GEMINI.md 需要更新的内容**
-
-1. **项目状态更新**:
-   ```markdown
-   ## 🎯 核心职责
-   
-   当前主力项目: **Four Swords Swing Strategy v1.4**
-   项目类型: 高胜率波段交易策略 (基于SQZMOM+WaveTrend)
-   开发状态: ✅ v1.4核心功能完成，持续优化中
-   ```
-
-2. **移除Vegas Tunnel引用**:
-   - 删除所有Vegas Tunnel相关的执行示例
-   - 更新执行参考为Four Swords v1.4相关任务
-
-3. **添加v1.4支持任务**:
-   ```markdown
-   ## 📋 支持的任务类型
-   
-   - Four Swords v1.4策略参数优化
-   - Pine Script波段策略开发
-   - SQZMOM+WaveTrend指标集成
-   - 策略回测和性能分析
-   ```
-
-### **README.md 需要更新的内容**
-
-1. **主要特性更新**:
-   ```markdown
-   ## ⭐ 主要特性
-   
-   - **🎯 专业策略**: Four Swords v1.4波段策略 (基于SQZMOM+WaveTrend)
-   - **📊 高胜率系统**: 适合INFP性格的波段交易，目标胜率75%+
-   - **🛡️ 智能状态管理**: 动量加速等待压缩 vs 动量衰竭直接退出
-   - **⚙️ 灵活配置**: EMA趋势过滤+成交量确认可独立开关
-   ```
-
-2. **快速开始更新**:
-   ```markdown
-   ### 2. 主力策略: Four Swords v1.4 ⭐推荐
-   
-   ```bash
-   # 加载v1.4策略到TradingView
-   # 文件: pinescript/strategies/oscillator/Four_Swords_Swing_Strategy_v1_4.pine
-   # 建议时间框架: 4H或1D波段交易
-   # 推荐配置: 保持默认设置(初学者)或开启所有过滤器(进阶)
-   ```
-
-3. **项目结构更新**:
-   ```markdown
-   ## 📁 项目结构
-   
-   ```
-   BIGBOSS/claudecode/
-   ├── 📋 CLAUDE.md                    # Claude Code项目指南  
-   ├── 📋 GEMINI.md                    # Gemini执行官手册
-   ├── 📋 README.md                    # 项目概览
-   ├── 📁 pinescript/strategies/oscillator/
-   │   └── ⭐ Four_Swords_Swing_Strategy_v1_4.pine  # 当前主力策略
-   ├── 📁 docs/
-   │   ├── 📁 strategies/              # 策略开发文档
-   │   ├── 📁 archived/               # 归档文档  
-   │   └── 📄 *.md                    # 技术文档
-   └── 📁 backtester/                 # Python回测系统
-   ```
-
----
-
-## 📋 手动更新检查清单
-
-**Gemini完成文件移动后，需要手动更新的内容**:
-
-- [ ] **GEMINI.md**: 更新核心职责和支持任务  
-- [ ] **README.md**: 更新主要特性和快速开始
-- [ ] **验证CLAUDE.md**: 确认v1.4状态完整
-- [ ] **检查链接**: 确保文档内部链接更新正确
 
 ---
 
@@ -182,17 +146,19 @@ plan:
 
 ## 🎯 预期成果
 
-**整理后的项目结构**:
-- 📁 **根目录清洁**: 移除Vegas Tunnel相关文档
-- 📁 **docs/archived/**: Vegas Tunnel项目完整归档
-- 📁 **docs/strategies/**: 四剑客策略文档集中管理
-- 📄 **文档同步**: 三大核心文档反映v1.4状态
+**标准化效果**:
+- ✅ **路径一致性**: 所有文档引用都基于CLAUDE.md的标准结构
+- ✅ **链接有效性**: 确保所有文档内部链接正确可访问
+- ✅ **维护性提升**: 未来路径变更只需修改CLAUDE.md即可
+- ✅ **用户体验**: 文档导航更加清晰和一致
 
-**改进效果**:
-- ✅ **结构清晰**: 当前项目vs归档项目分离
-- ✅ **易于维护**: 按功能分类的文档结构  
-- ✅ **信息同步**: 所有文档反映最新项目状态
-- ✅ **协作友好**: Gemini可以清晰找到执行任务
+**涉及文件**:
+- `README.md` - 主项目文档链接  
+- `docs/workflows/*.md` - 工作流程文档内部引用
+- `docs/guides/*.md` - 使用指南交叉引用
+- `docs/troubleshooting/*.md` - 问题修复文档引用
+- `docs/README.md` - 文档索引重新生成
+- `backtester/*.py` - Python代码中的文档引用
 
-**下一步行动**:
-项目文件整理完成后，可以专注于Four Swords v1.4的进一步优化和Python回测实现。
+**验证标准**:
+所有文档路径引用必须与CLAUDE.md中定义的目录结构完全一致，确保项目文档体系的统一性和可维护性。

@@ -79,25 +79,27 @@ BIGBOSS/
 │   ├── 📄 requirements.txt         # 主要依赖
 │   └── 📄 requirements-local.txt   # 本地专用依赖
 ├── 📁 docs/                       # 📚 技术文档
-│   ├── 📁 archive/                        # 🗄️ 已完成项目归档 (备用)
-│   ├── 📁 chinese/                        # 🇨🇳 中文文档 (备用)
-│   ├── 📁 project-planning/               # 📋 项目规划文档 (备用)
+│   ├── 📁 standards/                      # 📏 标准规范 (CLAUDE.md引导)
+│   │   ├── 📄 pine-script-standards.md    # Pine Script编码规范
+│   │   └── 📄 trading-parameters.md       # 默认交易参数
+│   ├── 📁 guides/                         # 📖 使用指南
+│   │   ├── 📄 backtrader-quickstart.md    # Backtrader快速入门
+│   │   ├── 📄 backtrader-architecture.md  # Backtrader架构指南
+│   │   ├── 📄 backtrader-parameters.md    # Backtrader参数参考
+│   │   ├── 📄 v5-usage.md                 # V5使用指南
+│   │   └── 📄 context-management.md       # 上下文管理指南
+│   ├── 📁 workflows/                      # 🔄 工作流程 (核心)
+│   │   ├── 📄 pine-to-python-conversion.md # Pine Script转Python流程
+│   │   ├── 📄 tradingview-testing-guide.md # TradingView回测标准
+│   │   └── 📄 development-workflow.md     # 开发工作流程
+│   ├── 📁 troubleshooting/               # 🔧 问题修复
+│   │   ├── 📄 backtrader-returns-fix.md  # 技术问题解决
+│   │   ├── 📄 v4-optimization-log.md     # V4优化日志
+│   │   └── 📄 v5-development-log.md      # V5开发日志
 │   ├── 📁 templates/                      # 📝 代码模板
 │   │   ├── 📄 kelly-criterion.pine        # Kelly准则模板
 │   │   └── 📄 strategy-config.pine        # 策略配置模板
-│   ├── 📄 BACKTRADER_RETURNS_FIX.md       # 技术问题解决
-│   ├── 📄 backtrader-architecture-guide.md # Backtrader架构指南
-│   ├── 📄 backtrader-parameter-reference.md # Backtrader参数参考
-│   ├── 📄 backtrader-quickstart.md        # Backtrader快速入门
-│   ├── 📄 context-management-guide.md     # 上下文管理指南
-│   ├── 📄 default_trading_parameters.md   # 默认交易参数
-│   ├── 📄 development_log_v5_final_solution.md  # V5开发日志
-│   ├── 📄 development_log_2025_08_11_fixes.md  # 2025-08-11修复日志
-│   ├── 📄 development_log_doji_ashi_v4_optimizations.md # V4优化日志
-│   ├── 📄 development-workflow.md          # 开发工作流程
-│   ├── 📄 pine-script-standards.md        # Pine Script标准
-│   ├── 📄 README.md                       # 文档概览
-│   └── 📄 v5_usage_guidelines.md          # V5使用指南
+│   └── 📄 README.md                       # 文档概览
 └── 📁 deprecated_v4/              # 🗄️ 已废弃的V4文件备份
     ├── 🔧 run_doji_ashi_strategy_v4.py     # V4运行器 (已废弃)
     ├── 🔧 doji_ashi_strategy_v4.py         # V4策略 (已废弃)
@@ -404,39 +406,36 @@ New-Item -Path "path" -ItemType Directory -Force
 
 ## Documentation Quick Reference
 
-### 📚 Development Workflow
-- [`docs/development-workflow.md`](docs/development-workflow.md) - Command-line operations and Git workflow
-- [`docs/v5_usage_guidelines.md`](docs/v5_usage_guidelines.md) - V5 system usage and best practices
-- [`docs/context-management-guide.md`](docs/context-management-guide.md) - Managing large project context
+### 🔄 工作流程 (核心)
+- [`docs/workflows/pine-to-python-conversion.md`](docs/workflows/pine-to-python-conversion.md) - Pine Script到Python完整转换流程
+- [`docs/workflows/tradingview-testing-guide.md`](docs/workflows/tradingview-testing-guide.md) - TradingView回测标准和评估矩阵
+- [`docs/workflows/development-workflow.md`](docs/workflows/development-workflow.md) - 命令行操作和Git工作流
 
-### 📊 Pine Script Development
-- [`docs/pine-script-standards.md`](docs/pine-script-standards.md) - Pine Script coding standards and conventions
-- [`docs/templates/kelly-criterion.pine`](docs/templates/kelly-criterion.pine) - Kelly Criterion position sizing template
-- [`docs/templates/strategy-config.pine`](docs/templates/strategy-config.pine) - Strategy configuration template
+### 📏 标准规范 (CLAUDE.md引导)
+- [`docs/standards/pine-script-standards.md`](docs/standards/pine-script-standards.md) - Pine Script编码标准和规范
+- [`docs/standards/trading-parameters.md`](docs/standards/trading-parameters.md) - 默认交易参数文档
+- [`docs/templates/kelly-criterion.pine`](docs/templates/kelly-criterion.pine) - Kelly准则仓位管理模板
+- [`docs/templates/strategy-config.pine`](docs/templates/strategy-config.pine) - 策略配置模板
 
-### 🐍 Backtrader Framework
-- [`docs/backtrader-quickstart.md`](docs/backtrader-quickstart.md) - Backtrader framework quick start guide
-- [`docs/backtrader-architecture-guide.md`](docs/backtrader-architecture-guide.md) - Backtrader architecture deep dive
-- [`docs/backtrader-parameter-reference.md`](docs/backtrader-parameter-reference.md) - Complete parameter reference
-- [`docs/default_trading_parameters.md`](docs/default_trading_parameters.md) - Default trading parameters documentation
+### 📖 使用指南
+- [`docs/guides/backtrader-quickstart.md`](docs/guides/backtrader-quickstart.md) - Backtrader框架快速入门
+- [`docs/guides/backtrader-architecture.md`](docs/guides/backtrader-architecture.md) - Backtrader架构深度指南
+- [`docs/guides/backtrader-parameters.md`](docs/guides/backtrader-parameters.md) - 完整参数参考
+- [`docs/guides/v5-usage.md`](docs/guides/v5-usage.md) - V5系统使用和最佳实践
+- [`docs/guides/context-management.md`](docs/guides/context-management.md) - 大项目上下文管理
 
-### 🔧 Technical Issues & Troubleshooting
-- [`docs/BACKTRADER_RETURNS_FIX.md`](docs/BACKTRADER_RETURNS_FIX.md) - Technical issue resolution
-- [`docs/development_log_v5_final_solution.md`](docs/development_log_v5_final_solution.md) - V5 system development log
-- [`docs/development_log_doji_ashi_v4_optimizations.md`](docs/development_log_doji_ashi_v4_optimizations.md) - V4 optimization history
+### 🔧 问题修复与故障排除
+- [`docs/troubleshooting/backtrader-returns-fix.md`](docs/troubleshooting/backtrader-returns-fix.md) - 技术问题解决方案
+- [`docs/troubleshooting/v5-development-log.md`](docs/troubleshooting/v5-development-log.md) - V5系统开发日志
+- [`docs/troubleshooting/v4-optimization-log.md`](docs/troubleshooting/v4-optimization-log.md) - V4优化历史记录
 
-### 📋 Project Documentation
-- [`docs/README.md`](docs/README.md) - Documentation overview and index
-- Legacy files: `deprecated_v4/doji_ashi_strategy_v4_guide.md` - Complete v4 strategy guide (moved to backup)
+### 📋 项目文档
+- [`docs/README.md`](docs/README.md) - 文档概览和索引
 
-### 🗄️ Archive Directories
-- [`docs/archive/`](docs/archive/) - Completed projects and historical documentation
-- [`docs/chinese/`](docs/chinese/) - Chinese language documentation
-- [`docs/project-planning/`](docs/project-planning/) - Project roadmaps and planning documents
-
-**Quick Access Tips**:
-- When writing Pine Script strategies → Read `docs/pine-script-standards.md`
-- When debugging Backtrader issues → Check `docs/BACKTRADER_RETURNS_FIX.md`
-- When starting new development → Review `docs/development-workflow.md`
-- When optimizing strategies → Reference `docs/v5_usage_guidelines.md`
-- When setting up parameters → Use `docs/default_trading_parameters.md`
+**快速访问提示**:
+- Pine Script策略开发 → 查看 `docs/standards/pine-script-standards.md`
+- 转换流程规划 → 参考 `docs/workflows/pine-to-python-conversion.md`
+- TradingView回测 → 使用 `docs/workflows/tradingview-testing-guide.md`
+- Backtrader问题调试 → 检查 `docs/troubleshooting/backtrader-returns-fix.md`
+- V5系统优化 → 参考 `docs/guides/v5-usage.md`
+- 参数设置 → 使用 `docs/standards/trading-parameters.md`
