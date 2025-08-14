@@ -55,7 +55,8 @@
       "Bash(claude --version)",
       "Bash(git filter-branch:*)",
       "Bash(git rm:*)",
-      "Bash(del:*)"
+      "Bash(del:*)",
+      "Bash(wsl:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",
