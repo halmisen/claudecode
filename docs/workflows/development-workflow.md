@@ -6,9 +6,59 @@ This document provides detailed command-line operations and development workflow
 
 ### Development Process
 1. Creating/modifying `.pine` files
-2. Testing in TradingView editor
-3. Validating against the Golden Rulebook standards (see `docs/pine-script-standards.md`)
-4. Committing changes with descriptive messages
+2. **Pre-compilation syntax check** (see Pine Script v5 Checklist below)
+3. Testing in TradingView editor
+4. Validating against the Golden Rulebook standards (see `docs/standards/pine-script-standards.md`)
+5. **Post-compilation validation** (see Validation Checklist below)
+6. Committing changes with descriptive messages
+
+### Pine Script v5 Pre-Compilation Checklist
+
+Before testing in TradingView, always verify:
+
+#### Variable Declaration
+- [ ] All variables use type prefixes (`float_`, `bool_`, `int_`, `string_`)
+- [ ] State variables declared with `var` keyword
+- [ ] No undeclared identifiers or typos in variable names
+- [ ] Variables initialized before use (especially for `+=` operations)
+
+#### Function Parameters
+- [ ] TA functions use `simple int` parameters (input parameters, not calculated)
+- [ ] `strategy.entry()` uses correct parameter names (`qty`, not `qty_percent`)
+- [ ] No dynamic parameters for `ta.ema()`, `ta.sma()`, etc.
+
+#### Syntax Structure
+- [ ] All ternary operators on single line
+- [ ] No multi-line statements without proper continuation
+- [ ] Function declarations on single line with `=>`
+- [ ] No functions defined inside conditional blocks
+
+#### Strategy-Specific
+- [ ] Strategy declaration includes proper `default_qty_type` and `default_qty_value`
+- [ ] Position sizing uses correct Pine Script v5 API
+- [ ] Alert conditions use valid variable references
+
+### Post-Compilation Validation Checklist
+
+After successful compilation in TradingView:
+
+#### Functional Testing
+- [ ] Strategy generates entry and exit signals
+- [ ] Risk management features work (stops, position sizing)
+- [ ] Status panel displays correct information
+- [ ] Alerts trigger properly
+
+#### Performance Validation
+- [ ] No compilation warnings or errors
+- [ ] Strategy runs without timeouts
+- [ ] Plots and visualizations render correctly
+- [ ] Backtest executes successfully
+
+#### Code Quality
+- [ ] Logic matches intended trading strategy
+- [ ] Edge cases handled properly (division by zero, etc.)
+- [ ] State management works correctly across bars
+- [ ] Memory usage is efficient
 
 ### File Organization
 

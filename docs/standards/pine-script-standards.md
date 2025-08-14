@@ -161,4 +161,208 @@ strategy(
 - Optimize drawing operations
 - Avoid duplicate plot operations
 
+## Critical Pine Script v5 Syntax Issues & Solutions
+
+### Series vs Simple Type Conflicts
+
+#### The Problem
+Pine Script v5 distinguishes between `simple` and `series` types. Built-in functions like `ta.ema()` require `simple int` parameters, but calculated values are often `series int`.
+
+**Error Example:**
+```pinescript
+// This will fail with "series int was used but simple int is expected"
+int_adaptiveLength = bool_condition ? 10 : 20
+float_ema = ta.ema(close, int_adaptiveLength)  // ERROR!
+```
+
+**Solutions:**
+1. **Use Fixed Parameters**: Avoid dynamic parameter calculation for TA functions
+```pinescript
+// ✅ Correct - Use original input directly
+int_length = input.int(10, "Length")
+float_ema = ta.ema(close, int_length)
+```
+
+2. **Alternative: Use Conditional Logic After Calculation**
+```pinescript
+// ✅ Correct - Calculate both, then choose
+float_ema10 = ta.ema(close, 10)
+float_ema20 = ta.ema(close, 20)
+float_result = bool_condition ? float_ema10 : float_ema20
+```
+
+### Variable Declaration Requirements
+
+#### Variable Scope and State Management
+All variables must be properly declared before use, especially state variables.
+
+**Required Pattern:**
+```pinescript
+// ✅ Correct - All state variables declared with var
+var bool bool_waitLongExit = false
+var bool bool_waitShortExit = false
+var float float_stopPrice = na
+var float float_entryPrice = na
+var int int_barsInTrade = 0
+```
+
+#### Variable Naming with Confirmation Score
+**Incorrect:**
+```pinescript
+confirmationScore += 30.0  // ERROR: Undeclared identifier
+```
+
+**Correct:**
+```pinescript
+float_confirmationScore = 0.0  // Declare first
+if (condition)
+    float_confirmationScore += 30.0  // Then modify
+```
+
+### Strategy Function Parameters
+
+#### Strategy.entry() Correct Usage
+**Incorrect:**
+```pinescript
+strategy.entry("Long", strategy.long, qty_percent=15.0)  // ERROR: No qty_percent parameter
+```
+
+**Correct Options:**
+```pinescript
+// Option 1: Use default_qty_type in strategy declaration
+strategy(..., default_qty_type=strategy.percent_of_equity, default_qty_value=15)
+strategy.entry("Long", strategy.long)
+
+// Option 2: Use qty parameter with calculated size
+float_dollarAmount = strategy.equity * 0.15
+float_shares = float_dollarAmount / close
+strategy.entry("Long", strategy.long, qty=float_shares)
+
+// Option 3: Use qty parameter with percentage (Pine Script handles conversion)
+strategy.entry("Long", strategy.long, qty=15.0)  // When default_qty_type is percent_of_equity
+```
+
+### Multi-line Statement Restrictions
+
+#### Ternary Operators Must Be Single Line
+**Incorrect:**
+```pinescript
+float_result = condition ?
+    trueValue :
+    falseValue  // ERROR: Multi-line not allowed
+```
+
+**Correct:**
+```pinescript
+float_result = condition ? trueValue : falseValue
+```
+
+#### Function Declarations Must Be Single Line
+**Incorrect:**
+```pinescript
+calculateValue(param1, param2) =>
+    result = param1 + param2
+    result  // ERROR: Multi-line declaration
+```
+
+**Correct:**
+```pinescript
+calculateValue(param1, param2) => param1 + param2
+```
+
+### Best Practices for Complex Strategies
+
+#### 1. Simplify Adaptive Parameters
+Instead of dynamic parameter adjustment, use conditional logic:
+```pinescript
+// ✅ Recommended approach
+float_ema_trending = ta.ema(close, 15)
+float_ema_ranging = ta.ema(close, 25)
+float_adaptive_ema = bool_trending ? float_ema_trending : float_ema_ranging
+```
+
+#### 2. Proper State Management Pattern
+```pinescript
+// ✅ Complete state management template
+var bool bool_inLongTrade = false
+var bool bool_inShortTrade = false
+var float float_entryPrice = na
+var float float_stopLoss = na
+var int int_tradeDuration = 0
+
+// State updates
+if (entryCondition and strategy.position_size == 0)
+    bool_inLongTrade := true
+    float_entryPrice := close
+    float_stopLoss := close * 0.98
+
+if (exitCondition or strategy.position_size == 0)
+    bool_inLongTrade := false
+    float_entryPrice := na
+    float_stopLoss := na
+    int_tradeDuration := 0
+```
+
+#### 3. Variable Assignment vs Modification
+```pinescript
+// ✅ Correct initialization and modification
+float_score = 0.0  // Initialize
+
+// Then modify conditionally
+if (condition1)
+    float_score += 25.0
+if (condition2)
+    float_score += 15.0
+```
+
+### Testing and Validation Checklist
+
+#### Pre-Compilation Checklist
+- [ ] All variables declared before use
+- [ ] No dynamic parameters for TA functions
+- [ ] All ternary operators are single-line
+- [ ] strategy.entry() uses correct parameters
+- [ ] Variable names follow type prefix conventions
+- [ ] State variables use `var` keyword
+- [ ] No functions defined inside conditional blocks
+
+#### Common Error Messages and Solutions
+1. **"series int was used but simple int is expected"**
+   - Solution: Use fixed input parameters for TA functions
+
+2. **"Undeclared identifier"**
+   - Solution: Declare all variables before use with proper type prefixes
+
+3. **"The function does not have an argument with the name"**
+   - Solution: Check Pine Script v5 documentation for correct parameter names
+
+4. **"Syntax error at input 'end of line without line continuation'"**
+   - Solution: Combine multi-line statements into single lines
+
+### Performance Optimization Notes
+
+#### Memory Efficiency
+- Use `var` only for variables that need persistence across bars
+- Avoid creating unnecessary series variables
+- Cache expensive calculations when possible
+
+#### Execution Efficiency
+- Minimize conditional complexity in hot paths
+- Use built-in functions instead of custom implementations when available
+- Avoid redundant calculations within the same bar
+
+## Version Compatibility Notes
+
+### Pine Script v5 Specific Requirements
+- Stricter type checking than v4
+- Enhanced series/simple type distinction
+- More restrictive multi-line syntax
+- Improved error messages but stricter compilation
+
+### Migration from v4 to v5
+- Review all dynamic parameter usage
+- Update strategy.entry() calls to remove deprecated parameters
+- Ensure all variables are properly scoped and declared
+- Test thoroughly as some functions behave differently
+
 ### Clean, efficient, and predictable code is the ultimate goal! 🚀

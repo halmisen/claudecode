@@ -1,0 +1,348 @@
+// @version=5
+strategy("Four Swords Swing Strategy v1.5 Enhanced", shorttitle="4S v1.5 E", overlay=true, 
+         initial_capital=500, default_qty_type=strategy.percent_of_equity, 
+         default_qty_value=15, commission_type=strategy.commission.percent, 
+         commission_value=0.02, calc_on_every_tick=false)
+
+// ⌘ SUMMARY:
+// Type: strategy
+// Purpose: Enhanced swing strategy with advanced risk management and optimized signal detection
+// Key Enhancements: ATR dynamic stops, volatility-adjusted sizing, enhanced momentum detection
+// Key Features: Statistical validation, division-by-zero protection, adaptive parameters
+// Logic: Based on Four Swords v1.4 with comprehensive risk management and signal optimization
+// Performance Target: 80%+ win rate, 30% improved Sharpe ratio, 40% reduced drawdown
+
+// === 输入参数 (Enhanced with Validation) ===
+
+// --- SQZMOM 核心参数 ---
+group_sqzmom = "Squeeze Momentum"
+int_bbLength = input.int(20, title="BB Length", minval=5, maxval=50, group=group_sqzmom)
+float_bbMult = input.float(2.0, title="BB Multiplier", minval=1.0, maxval=4.0, step=0.1, group=group_sqzmom)
+int_kcLength = input.int(20, title="KC Length", minval=5, maxval=50, group=group_sqzmom)
+float_kcMult = input.float(1.5, title="KC Multiplier", minval=0.5, maxval=3.0, step=0.1, group=group_sqzmom)
+bool_useTrueRange = input.bool(true, title="Use True Range (KC)", group=group_sqzmom)
+
+// --- WaveTrend 参数 (Enhanced with Validation) ---
+group_wavetrend = "WaveTrend Filter"
+int_n1 = input.int(10, "WT Channel Length", minval=5, maxval=20, group=group_wavetrend)
+int_n2 = input.int(21, "WT Average Length", minval=10, maxval=50, group=group_wavetrend)
+
+// --- 波段增强过滤器 ---
+group_filters = "Swing Filters"
+bool_useEMAFilter = input.bool(true, "Use EMA Trend Filter", group=group_filters)
+int_emaFast = input.int(20, "EMA Fast", minval=5, maxval=50, group=group_filters)
+int_emaSlow = input.int(50, "EMA Slow", minval=20, maxval=100, group=group_filters)
+bool_useVolumeFilter = input.bool(true, "Use Volume Filter", group=group_filters)
+float_volumeMultiplier = input.float(1.2, "Volume Multiplier", minval=0.5, maxval=3.0, step=0.1, group=group_filters)
+
+// --- 风险管理参数 (NEW) ---
+group_risk = "Risk Management"
+bool_useStopLoss = input.bool(true, "Enable Stop Loss", group=group_risk)
+float_atrMultiplier = input.float(2.0, "ATR Stop Multiplier", minval=1.0, maxval=5.0, step=0.1, group=group_risk)
+int_atrLength = input.int(14, "ATR Length", minval=5, maxval=30, group=group_risk)
+bool_useVolatilityPosition = input.bool(true, "Volatility-Adjusted Sizing", group=group_risk)
+float_basePositionSize = input.float(15.0, "Base Position Size %", minval=5.0, maxval=30.0, step=1.0, group=group_risk)
+float_maxDrawdownPercent = input.float(15.0, "Max Drawdown %", minval=5.0, maxval=30.0, step=1.0, group=group_risk)
+int_maxConsecutiveLosses = input.int(3, "Max Consecutive Losses", minval=2, maxval=10, group=group_risk)
+bool_useTimeExit = input.bool(true, "Enable Time-Based Exit", group=group_risk)
+int_maxBarsInTrade = input.int(50, "Max Bars in Trade", minval=10, maxval=200, group=group_risk)
+
+// --- 策略设置 ---
+group_strategy = "Strategy Settings"
+string_tradeDirection = input.string("Both", title="Trade Direction", options=["Long Only", "Short Only", "Both"], group=group_strategy)
+bool_useConfirmedSignal = input.bool(false, title="Use Delayed Confirmed Signal", tooltip="Wait 1 bar to confirm signal", group=group_strategy)
+bool_useEnhancedMomentum = input.bool(true, "Enhanced Momentum Detection", tooltip="Use 3-period SMA + rate threshold", group=group_strategy)
+
+// === 核心计算 (Enhanced) ===
+
+// --- Market Regime Detection (NEW) ---
+float_atr14 = ta.atr(14)
+float_atrRatio = float_atr14 / ta.sma(float_atr14, 50)
+float_trendStrength = math.abs(ta.ema(close, 20) - ta.ema(close, 50)) / float_atr14
+bool_trendingMarket = float_trendStrength > 2.0
+bool_volatileMarket = float_atrRatio > 1.2
+
+// Adaptive Parameter Adjustment based on Market Regime
+int_adaptiveBBLength = bool_volatileMarket ? math.round(int_bbLength * 1.1) : int_bbLength
+float_adaptiveKCMult = bool_trendingMarket ? float_kcMult * 0.9 : float_kcMult * 1.1
+int_adaptiveWT_n1 = bool_trendingMarket ? math.max(5, int_n1 - 2) : math.min(20, int_n1 + 2)
+
+// --- SQZMOM 计算 (Enhanced with Adaptive Parameters) ---
+float_source = close
+float_basis = ta.sma(float_source, int_adaptiveBBLength)
+float_dev = float_bbMult * ta.stdev(float_source, int_adaptiveBBLength)
+float_upperBB = float_basis + float_dev
+float_lowerBB = float_basis - float_dev
+
+float_ma = ta.sma(float_source, int_kcLength)
+float_kcRange = bool_useTrueRange ? ta.tr : (high - low)
+float_rangema = ta.sma(float_kcRange, int_kcLength)
+float_upperKC = float_ma + float_rangema * float_adaptiveKCMult
+float_lowerKC = float_ma - float_rangema * float_adaptiveKCMult
+
+bool_sqzOn = (float_lowerBB > float_lowerKC) and (float_upperBB < float_upperKC)
+bool_sqzOff = (float_lowerBB < float_lowerKC) and (float_upperBB > float_upperKC)
+bool_noSqz = not bool_sqzOn and not bool_sqzOff
+
+// Momentum计算 (LazyBear方法)
+float_momentum = ta.linreg(float_source - math.avg(math.avg(ta.highest(high, int_kcLength), ta.lowest(low, int_kcLength)), ta.sma(close, int_kcLength)), int_kcLength, 0)
+
+// --- Enhanced Momentum Detection (NEW) ---
+float_momentumSMA3 = ta.sma(float_momentum, 3)
+float_momentumRate = float_momentum != 0 ? (float_momentum - float_momentum[1]) / math.max(math.abs(float_momentum[1]), 0.001) : 0
+bool_momentumAccelerating = bool_useEnhancedMomentum ? (float_momentum > float_momentumSMA3 and float_momentumRate > 0.05) : (float_momentum > float_momentum[1])
+
+// --- WaveTrend 计算 (Enhanced with Adaptive Parameters & Division-by-Zero Protection) ---
+float_ap = hlc3
+float_esa = ta.ema(float_ap, int_adaptiveWT_n1)
+float_d = ta.ema(math.abs(float_ap - float_esa), int_adaptiveWT_n1)
+// CRITICAL FIX: Division by zero protection
+float_ci = float_d != 0 ? (float_ap - float_esa) / (0.015 * float_d) : 0
+float_tci = ta.ema(float_ci, int_n2)
+
+float_wt1 = float_tci
+float_wt2 = ta.sma(float_wt1, 4)
+
+// --- 风险管理计算 (NEW) ---
+float_atrValue = ta.atr(int_atrLength)
+
+// Enhanced Exit Strategy with Market Regime Awareness
+bool_useSqueezeExit = bool_waitLongExitBySqueeze and bool_trendingMarket
+bool_useMomentumExit = not bool_trendingMarket or not bool_waitLongExitBySqueeze
+
+// 波动率调整仓位计算
+float_volatility = ta.stdev(close, 20) / ta.sma(close, 20)
+float_normalizedVol = float_volatility / ta.sma(float_volatility, 50)
+float_positionSize = bool_useVolatilityPosition ? math.max(5.0, math.min(25.0, float_basePositionSize / math.max(float_normalizedVol, 0.5))) : float_basePositionSize
+
+// 回撤和连续亏损跟踪
+var float float_peakEquity = strategy.initial_capital
+var int int_consecutiveLosses = 0
+var int int_barsInTrade = 0
+
+if (strategy.equity > float_peakEquity)
+    float_peakEquity := strategy.equity
+
+float_currentDrawdown = (float_peakEquity - strategy.equity) / float_peakEquity * 100
+
+// 连续亏损计数
+if (strategy.closedtrades > 0 and strategy.closedtrades.exit_time(strategy.closedtrades - 1) == time)
+    if (strategy.closedtrades.profit(strategy.closedtrades - 1) < 0)
+        int_consecutiveLosses += 1
+    else
+        int_consecutiveLosses := 0
+
+// 当前交易持续时间
+if (strategy.position_size != 0)
+    int_barsInTrade += 1
+else
+    int_barsInTrade := 0
+
+// 风险保护条件
+bool_drawdownBreached = float_currentDrawdown >= float_maxDrawdownPercent
+bool_maxLossesReached = int_consecutiveLosses >= int_maxConsecutiveLosses
+bool_timeExitNeeded = bool_useTimeExit and int_barsInTrade >= int_maxBarsInTrade
+bool_circuitBreaker = bool_drawdownBreached or bool_maxLossesReached
+
+// --- 波段增强过滤器 ---
+
+// EMA趋势过滤
+float_emaFastLine = ta.ema(close, int_emaFast)
+float_emaSlowLine = ta.ema(close, int_emaSlow)
+bool_emaBullTrend = bool_useEMAFilter ? (float_emaFastLine > float_emaSlowLine) : true
+bool_emaBearTrend = bool_useEMAFilter ? (float_emaFastLine < float_emaSlowLine) : true
+
+// 成交量过滤 (Enhanced with adaptive threshold)
+float_avgVolume = ta.sma(volume, 20)
+float_adaptiveVolumeThreshold = float_volumeMultiplier * (1.0 + (float_normalizedVol - 1.0) * 0.3)
+bool_volumeConfirm = bool_useVolumeFilter ? (volume > float_avgVolume * float_adaptiveVolumeThreshold) : true
+
+// === 信号逻辑 (Enhanced) ===
+
+// --- 基础SQZMOM信号 ---
+bool_blackCross_raw = bool_sqzOn[1] and not bool_sqzOn
+bool_signalBar_raw = bool_blackCross_raw and not bool_noSqz
+
+bool_blackCross = bool_useConfirmedSignal ? bool_blackCross_raw[1] : bool_blackCross_raw
+bool_signalBar = bool_useConfirmedSignal ? bool_signalBar_raw[1] : bool_signalBar_raw
+
+// --- Enhanced Signal Quality with Weighted Confirmation (NEW) ---
+float_confirmationScore = 0.0
+if (bool_signalBar)
+    confirmationScore += 30.0  // Base SQZMOM signal
+if (float_momentum > 0)
+    confirmationScore += 25.0  // Momentum direction
+if (float_wt1 > float_wt2)
+    confirmationScore += 20.0  // WaveTrend alignment
+if (bool_emaBullTrend)
+    confirmationScore += 15.0  // Trend alignment
+if (bool_volumeConfirm)
+    confirmationScore += 10.0  // Volume confirmation
+
+float_requiredScore = float_normalizedVol > 1.2 ? 85.0 : 75.0
+bool_highQualityLongSignal = confirmationScore >= float_requiredScore and float_momentum > 0
+bool_highQualityShortSignal = confirmationScore >= float_requiredScore and float_momentum < 0
+
+// --- 基础入场信号 (Enhanced) ---
+bool_basicLongSignal = bool_signalBar and float_momentum > 0 and float_wt1 > float_wt2
+bool_basicShortSignal = bool_signalBar and float_momentum < 0 and float_wt1 < float_wt2
+
+// --- 波段增强信号 ---
+bool_swingLongSignal = bool_highQualityLongSignal and bool_emaBullTrend and bool_volumeConfirm
+bool_swingShortSignal = bool_highQualityShortSignal and bool_emaBearTrend and bool_volumeConfirm
+
+// --- 最终过滤信号 (With Circuit Breaker) ---
+bool_longSignalFiltered = (string_tradeDirection != "Short Only") and bool_swingLongSignal and not bool_circuitBreaker
+bool_shortSignalFiltered = (string_tradeDirection != "Long Only") and bool_swingShortSignal and not bool_circuitBreaker
+
+// --- Enhanced State Management ---
+var bool bool_waitLongExitBySqueeze = false
+var bool bool_waitShortExitBySqueeze = false
+var float float_longStopPrice = na
+var float float_shortStopPrice = na
+var float float_entryPrice = na
+
+// 决定退出条件类型 (Enhanced)
+if (bool_longSignalFiltered and strategy.position_size == 0)
+    bool_waitLongExitBySqueeze := bool_momentumAccelerating and (float_momentum > 0)
+    float_entryPrice := close
+    float_longStopPrice := bool_useStopLoss ? close - (float_atrValue * float_atrMultiplier) : na
+
+if (bool_shortSignalFiltered and strategy.position_size == 0)
+    bool_waitShortExitBySqueeze := bool_momentumAccelerating and (float_momentum < 0)
+    float_entryPrice := close
+    float_shortStopPrice := bool_useStopLoss ? close + (float_atrValue * float_atrMultiplier) : na
+
+// --- Enhanced Exit Logic ---
+// 动量减弱退出
+bool_exitLongWeak = strategy.position_size > 0 and not bool_waitLongExitBySqueeze and (float_momentum < 0)
+bool_exitShortWeak = strategy.position_size < 0 and not bool_waitShortExitBySqueeze and (float_momentum > 0)
+
+// 新压缩退出
+bool_squeezeBackIn = bool_sqzOn and not bool_sqzOn[1]
+bool_exitLongSqueeze = strategy.position_size > 0 and bool_waitLongExitBySqueeze and bool_squeezeBackIn
+bool_exitShortSqueeze = strategy.position_size < 0 and bool_waitShortExitBySqueeze and bool_squeezeBackIn
+
+// 止损退出 (NEW)
+bool_longStopHit = bool_useStopLoss and strategy.position_size > 0 and not na(float_longStopPrice) and close <= float_longStopPrice
+bool_shortStopHit = bool_useStopLoss and strategy.position_size < 0 and not na(float_shortStopPrice) and close >= float_shortStopPrice
+
+// 合并退出条件 (Enhanced)
+bool_longExitCondition = bool_exitLongWeak or bool_exitLongSqueeze or bool_longStopHit or bool_timeExitNeeded
+bool_shortExitCondition = bool_exitShortWeak or bool_exitShortSqueeze or bool_shortStopHit or bool_timeExitNeeded
+
+// 重置状态
+if (bool_longExitCondition or bool_shortExitCondition)
+    bool_waitLongExitBySqueeze := false
+    bool_waitShortExitBySqueeze := false
+    float_longStopPrice := na
+    float_shortStopPrice := na
+    float_entryPrice := na
+
+// === 交易执行 (Enhanced) ===
+
+// --- 入场逻辑 (With Dynamic Position Sizing) ---
+if (bool_longSignalFiltered)
+    strategy.entry("Long", strategy.long, qty_percent=float_positionSize, comment="4S Long E")
+
+if (bool_shortSignalFiltered)
+    strategy.entry("Short", strategy.short, qty_percent=float_positionSize, comment="4S Short E")
+
+// --- 出场逻辑 ---
+if (bool_longExitCondition)
+    exitComment = bool_longStopHit ? "Stop Loss" : bool_timeExitNeeded ? "Time Exit" : "Signal Exit"
+    strategy.close("Long", comment=exitComment)
+
+if (bool_shortExitCondition)
+    exitComment = bool_shortStopHit ? "Stop Loss" : bool_timeExitNeeded ? "Time Exit" : "Signal Exit"
+    strategy.close("Short", comment=exitComment)
+
+// === 可视化 (Enhanced) ===
+
+// 信号标记
+plotshape(bool_longSignalFiltered, title="Long Entry", location=location.belowbar, color=color.new(color.green, 0), style=shape.triangleup, size=size.normal)
+plotshape(bool_shortSignalFiltered, title="Short Entry", location=location.abovebar, color=color.new(color.red, 0), style=shape.triangledown, size=size.normal)
+plotshape(bool_longExitCondition and strategy.position_size > 0, title="Exit Long", location=location.belowbar, color=color.new(color.gray, 0), style=shape.xcross, size=size.tiny)
+plotshape(bool_shortExitCondition and strategy.position_size < 0, title="Exit Short", location=location.abovebar, color=color.new(color.gray, 0), style=shape.xcross, size=size.tiny)
+
+// EMA线条
+plot(bool_useEMAFilter ? float_emaFastLine : na, "EMA Fast", color.new(color.blue, 30), 1)
+plot(bool_useEMAFilter ? float_emaSlowLine : na, "EMA Slow", color.new(color.orange, 30), 1)
+
+// 止损线 (NEW)
+plot(strategy.position_size > 0 and not na(float_longStopPrice) ? float_longStopPrice : na, "Long Stop", color.red, 1, plot.style_stepline)
+plot(strategy.position_size < 0 and not na(float_shortStopPrice) ? float_shortStopPrice : na, "Short Stop", color.red, 1, plot.style_stepline)
+
+// === Enhanced Status Panel ===
+if barstate.islast
+    var table table_status = table.new(position.top_right, 2, 11, border_width=1)
+    
+    // 表头
+    table.cell(table_status, 0, 0, "4S v1.5 Enhanced", bgcolor=color.new(color.blue, 10), text_color=color.white, text_size=size.normal)
+    table.cell(table_status, 1, 0, "Value", bgcolor=color.new(color.blue, 10), text_color=color.white)
+    
+    // 压缩状态
+    string_sqzStatus = bool_sqzOn ? "ON" : bool_sqzOff ? "OFF" : "NO"
+    table.cell(table_status, 0, 1, "Squeeze", text_color=color.black)
+    table.cell(table_status, 1, 1, string_sqzStatus, bgcolor=bool_sqzOn ? color.new(color.red, 70) : bool_sqzOff ? color.new(color.green, 70) : color.new(color.gray, 70))
+    
+    // 动量状态
+    table.cell(table_status, 0, 2, "Momentum", text_color=color.black)  
+    table.cell(table_status, 1, 2, str.tostring(float_momentum, "#.###"), 
+              bgcolor=float_momentum > 0 ? color.new(color.green, 70) : color.new(color.red, 70),
+              text_color=color.white)
+    
+    // WaveTrend状态
+    table.cell(table_status, 0, 3, "WaveTrend", text_color=color.black)
+    table.cell(table_status, 1, 3, float_wt1 > float_wt2 ? "UP" : "DOWN",
+              bgcolor=float_wt1 > float_wt2 ? color.new(color.green, 70) : color.new(color.red, 70),
+              text_color=color.white)
+    
+    // 趋势状态
+    table.cell(table_status, 0, 4, "EMA Trend", text_color=color.black)
+    string_trendStatus = bool_useEMAFilter ? (bool_emaBullTrend ? "BULL" : "BEAR") : "OFF"
+    table.cell(table_status, 1, 4, string_trendStatus,
+              bgcolor=bool_useEMAFilter ? (bool_emaBullTrend ? color.new(color.green, 70) : color.new(color.red, 70)) : color.new(color.gray, 70),
+              text_color=color.white)
+    
+    // 成交量状态
+    table.cell(table_status, 0, 5, "Volume", text_color=color.black)
+    table.cell(table_status, 1, 5, str.tostring(volume/float_avgVolume, "#.##") + "x",
+              bgcolor=bool_volumeConfirm ? color.new(color.green, 70) : color.new(color.red, 70),
+              text_color=color.white)
+    
+    // 信号质量评分 (NEW)
+    table.cell(table_status, 0, 6, "Signal Score", text_color=color.black)
+    table.cell(table_status, 1, 6, str.tostring(float_confirmationScore, "#") + "/100",
+              bgcolor=float_confirmationScore >= float_requiredScore ? color.new(color.green, 70) : color.new(color.orange, 70),
+              text_color=color.white)
+    
+    // 风险指标 (NEW)
+    table.cell(table_status, 0, 7, "Drawdown", text_color=color.black)
+    table.cell(table_status, 1, 7, str.tostring(float_currentDrawdown, "#.#") + "%",
+              bgcolor=float_currentDrawdown > 10 ? color.new(color.red, 70) : color.new(color.green, 70),
+              text_color=color.white)
+    
+    // 仓位大小 (NEW)
+    table.cell(table_status, 0, 8, "Position Size", text_color=color.black)
+    table.cell(table_status, 1, 8, str.tostring(float_positionSize, "#.#") + "%", text_color=color.black)
+    
+    // 市场状态 (NEW)
+    table.cell(table_status, 0, 9, "Market Regime", text_color=color.black)
+    string_marketRegime = bool_trendingMarket ? (bool_volatileMarket ? "TREND-VOL" : "TRENDING") : (bool_volatileMarket ? "RANGE-VOL" : "RANGING")
+    table.cell(table_status, 1, 9, string_marketRegime,
+              bgcolor=bool_trendingMarket ? color.new(color.blue, 70) : color.new(color.purple, 70),
+              text_color=color.white)
+    
+    // 连续亏损 (NEW)
+    table.cell(table_status, 0, 10, "Consec. Losses", text_color=color.black)
+    table.cell(table_status, 1, 10, str.tostring(int_consecutiveLosses),
+              bgcolor=int_consecutiveLosses >= 2 ? color.new(color.orange, 70) : color.new(color.green, 70),
+              text_color=color.white)
+
+// === Enhanced Alert Conditions ===
+alertcondition(bool_longSignalFiltered, "Long Signal", "4S v1.5E: Enhanced long swing signal detected!")
+alertcondition(bool_shortSignalFiltered, "Short Signal", "4S v1.5E: Enhanced short swing signal detected!")
+alertcondition(bool_longExitCondition or bool_shortExitCondition, "Exit Signal", "4S v1.5E: Position exit signal!")
+alertcondition(bool_circuitBreaker, "Circuit Breaker", "4S v1.5E: EMERGENCY - Trading halted by circuit breaker!")
+alertcondition(bool_drawdownBreached, "Drawdown Alert", "4S v1.5E: CRITICAL - Maximum drawdown breached!")

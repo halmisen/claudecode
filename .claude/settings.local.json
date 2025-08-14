@@ -57,6 +57,7 @@
       "Bash(git rm:*)",
       "Bash(del:*)"
     ],
-    "deny": []
+    "deny": [],
+    "defaultMode": "acceptEdits"
   }
 }
