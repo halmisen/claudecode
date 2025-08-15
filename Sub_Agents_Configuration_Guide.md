@@ -285,15 +285,28 @@ code-reviewer应重点检查:
 **配置步骤**:
 ```bash
 # 1. 确保.claude/agents/目录在项目中
-# (已完成: D:\BIGBOSS\claudecode\.claude\agents\)
+# ✅ 已完成: D:\BIGBOSS\claudecode\.claude\agents\
 
 # 2. 将Sub-Agent配置加入Git版本控制
 git add .claude/agents/pine-script-code-reviewer.md
-git commit -m "Add Pine Script code reviewer sub-agent"
+git add Sub_Agents_Configuration_Guide.md
+git commit -m "🧠 Add Pine Script code reviewer sub-agent and configuration guide"
 git push
 
 # 3. 其他设备获取配置
 git pull  # 自动同步Sub-Agent配置
+```
+
+#### ✅ 当前状态检查
+```bash
+# 检查Git状态
+$ git status
+On branch master
+Changes to be committed:
+  new file:   .claude/agents/pine-script-code-reviewer.md  ✅
+  new file:   Sub_Agents_Configuration_Guide.md           ✅
+
+# Sub-Agent文件已准备好提交到Git
 ```
 
 ### 🎯 审查Agent的核心能力

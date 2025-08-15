@@ -1,0 +1,189 @@
+// @version=5
+strategy("Four Swords Swing Strategy v1.8_xiaog", shorttitle="4S v1.8g", overlay=true,
+         initial_capital=1000, default_qty_type=strategy.percent_of_equity,
+         default_qty_value=20, commission_type=strategy.commission.percent,
+         commission_value=0.02)
+
+// ⌘ SUMMARY:
+// Type: strategy (Adaptive Intelligence Version by xiaog)
+// Purpose: Implement the v1.8 design from the development guide.
+// Key Features:
+// 1. Adaptive Parameters: BB/KC parameters adjust to market volatility.
+// 2. Multi-Timeframe Confirmation: Higher timeframe trend validation.
+// 3. Signal Quality Scoring: A 100-point system to evaluate signal strength.
+// 4. Dynamic Risk Management: ATR-based stop loss and position sizing.
+// Status: Development version, ready for testing.
+
+// === 输入参数 ===
+
+// --- SQZMOM 核心参数 ---
+int_bbLength = input.int(20, title="BB Length", group="Squeeze Momentum")
+float_bbMult = input.float(2.0, title="BB Multiplier", group="Squeeze Momentum")
+int_kcLength = input.int(20, title="KC Length", group="Squeeze Momentum")
+float_kcMult = input.float(1.5, title="KC Multiplier", group="Squeeze Momentum")
+bool_useTrueRange = input.bool(true, title="Use True Range (KC)", group="Squeeze Momentum")
+
+// --- WaveTrend 参数 ---
+int_n1 = input.int(10, "WT Channel Length", group="WaveTrend Filter")
+int_n2 = input.int(21, "WT Average Length", group="WaveTrend Filter")
+
+// --- 波段增强过滤器 ---
+bool_useEMAFilter = input.bool(true, "Use EMA Trend Filter", group="Swing Filters")
+int_emaFast = input.int(20, "EMA Fast", group="Swing Filters")
+int_emaSlow = input.int(50, "EMA Slow", group="Swing Filters")
+bool_useVolumeFilter = input.bool(true, "Use Volume Filter", group="Swing Filters")
+float_volumeMultiplier = input.float(1.1, "Volume Multiplier", step=0.1, group="Swing Filters")
+
+// --- v1.8 智能功能开关 ---
+string_htf = input.timeframe("4H", "Higher Timeframe", group="v1.8 Adaptive Intelligence")
+bool_useAdaptiveParams = input.bool(true, "Use Adaptive Parameters", group="v1.8 Adaptive Intelligence")
+bool_useHTFConfirm = input.bool(true, "Use HTF Confirmation", group="v1.8 Adaptive Intelligence")
+float_qualityThreshold = input.float(75.0, "Signal Quality Threshold (0-100)", group="v1.8 Adaptive Intelligence")
+bool_useDynamicRisk = input.bool(true, "Use Dynamic Risk Management", group="v1.8 Adaptive Intelligence")
+float_atrMultiplier = input.float(2.0, "ATR Stop Loss Multiplier", group="v1.8 Adaptive Intelligence")
+int_consecutiveLossLimit = input.int(3, "Consecutive Loss Limit", group="v1.8 Adaptive Intelligence")
+
+
+// === 核心计算 ===
+
+// --- v1.8 自适应参数 ---
+float_volatilityMultiplier = ta.atr(14) / ta.atr(50)
+int_adaptiveBBLength = bool_useAdaptiveParams ? math.round(int_bbLength * (1 + (float_volatilityMultiplier - 1) * 0.3)) : int_bbLength
+float_adaptiveKCMult = bool_useAdaptiveParams ? float_kcMult * (0.8 + 0.4 * float_volatilityMultiplier) : float_kcMult
+
+// --- SQZMOM 计算 ---
+float_source = close
+float_basis = ta.sma(float_source, int_adaptiveBBLength)
+float_dev = float_bbMult * ta.stdev(float_source, int_adaptiveBBLength)
+float_upperBB = float_basis + float_dev
+float_lowerBB = float_basis - float_dev
+
+float_ma = ta.sma(float_source, int_kcLength)
+float_kcRange = bool_useTrueRange ? ta.tr : (high - low)
+float_rangema = ta.sma(float_kcRange, int_kcLength)
+float_upperKC = float_ma + float_rangema * float_adaptiveKCMult
+float_lowerKC = float_ma - float_rangema * float_adaptiveKCMult
+
+bool_sqzOn = (float_lowerBB > float_lowerKC) and (float_upperBB < float_upperKC)
+bool_sqzOff = (float_lowerBB < float_lowerKC) and (float_upperBB > float_upperKC)
+
+// Momentum计算
+float_momentum = ta.linreg(float_source - math.avg(math.avg(ta.highest(high, int_kcLength), ta.lowest(low, int_kcLength)), ta.sma(close, int_kcLength)), int_kcLength, 0)
+
+// --- WaveTrend 计算 ---
+float_ap = hlc3
+float_esa = ta.ema(float_ap, int_n1)
+float_d = ta.ema(math.abs(float_ap - float_esa), int_n1)
+float_ci = (float_ap - float_esa) / (0.015 * float_d)
+float_tci = ta.ema(float_ci, int_n2)
+
+float_wt1 = float_tci
+float_wt2 = ta.sma(float_wt1, 4)
+
+// --- 多时间框架确认 ---
+[htf_ema_fast, htf_ema_slow] = request.security(syminfo.tickerid, string_htf, [ta.ema(close, int_emaFast), ta.ema(close, int_emaSlow)])
+bool_htfBullTrend = htf_ema_fast > htf_ema_slow
+bool_htfBearTrend = htf_ema_fast < htf_ema_slow
+bool_htfTrendConfirmLong = bool_useHTFConfirm ? bool_htfBullTrend : true
+bool_htfTrendConfirmShort = bool_useHTFConfirm ? bool_htfBearTrend : true
+
+// --- 基础信号 ---
+bool_squeezeRelease = bool_sqzOn[1] and not bool_sqzOn
+bool_basicLongSignal = bool_squeezeRelease and float_momentum > 0 and float_wt1 > float_wt2
+bool_basicShortSignal = bool_squeezeRelease and float_momentum < 0 and float_wt1 < float_wt2
+
+// --- 信号质量评分 (100分制) ---
+float_signalQuality = 0.0
+if (bool_squeezeRelease)
+    float_signalQuality := 0.0 // Reset on new signal
+    // SQZMOM基础分 (25)
+    float_signalQuality += 25.0
+    // WaveTrend超卖/超买确认 (20)
+    if (float_momentum > 0 and float_wt1 < -20)
+        float_signalQuality += 20.0
+    if (float_momentum < 0 and float_wt1 > 20)
+        float_signalQuality += 20.0
+    // 趋势确认 (15)
+    if (bool_useEMAFilter and ta.ema(close, int_emaFast) > ta.ema(close, int_emaSlow) and float_momentum > 0)
+        float_signalQuality += 15.0
+    if (bool_useEMAFilter and ta.ema(close, int_emaFast) < ta.ema(close, int_emaSlow) and float_momentum < 0)
+        float_signalQuality += 15.0
+    // 成交量确认 (15)
+    if (bool_useVolumeFilter and volume > ta.sma(volume, 20) * float_volumeMultiplier)
+        float_signalQuality += 15.0
+    // 高时间框架确认 (25)
+    if (bool_useHTFConfirm and bool_htfBullTrend and float_momentum > 0)
+        float_signalQuality += 25.0
+    if (bool_useHTFConfirm and bool_htfBearTrend and float_momentum < 0)
+        float_signalQuality += 25.0
+else
+    float_signalQuality := 0.0
+
+
+bool_highQualitySignal = float_signalQuality >= float_qualityThreshold
+
+// --- 最终信号 ---
+bool_finalLongSignal = bool_basicLongSignal and bool_highQualitySignal and bool_htfTrendConfirmLong
+bool_finalShortSignal = bool_basicShortSignal and bool_highQualitySignal and bool_htfTrendConfirmShort
+
+// === 动态风险管理 ===
+float_atr = ta.atr(14)
+float_stopLossLong = strategy.position_avg_price - float_atr * float_atrMultiplier
+float_stopLossShort = strategy.position_avg_price + float_atr * float_atrMultiplier
+
+var int int_consecutiveLosses = 0
+if (strategy.wintrades > strategy.wintrades[1])
+    int_consecutiveLosses := 0
+else if (strategy.losstrades > strategy.losstrades[1])
+    int_consecutiveLosses += 1
+
+bool_riskPause = bool_useDynamicRisk and int_consecutiveLosses >= int_consecutiveLossLimit
+
+// === 交易执行 ===
+if (not bool_riskPause)
+    if (bool_finalLongSignal)
+        strategy.entry("Long", strategy.long)
+        if (bool_useDynamicRisk)
+            strategy.exit("SL/TP Long", "Long", stop=float_stopLossLong)
+
+    if (bool_finalShortSignal)
+        strategy.entry("Short", strategy.short)
+        if (bool_useDynamicRisk)
+            strategy.exit("SL/TP Short", "Short", stop=float_stopLossShort)
+
+// --- 退出逻辑 (v1.7.4 简化版) ---
+bool_exitLong = strategy.position_size > 0 and (float_momentum < 0 or bool_sqzOn)
+bool_exitShort = strategy.position_size < 0 and (float_momentum > 0 or bool_sqzOn)
+
+if (bool_exitLong)
+    strategy.close("Long", comment="Exit Long")
+if (bool_exitShort)
+    strategy.close("Short", comment="Exit Short")
+
+// === 可视化 ===
+plotshape(bool_finalLongSignal, title="Long Entry", location=location.belowbar, color=color.new(color.green, 0), style=shape.triangleup, size=size.normal)
+plotshape(bool_finalShortSignal, title="Short Entry", location=location.abovebar, color=color.new(color.red, 0), style=shape.triangledown, size=size.normal)
+
+// 状态面板
+if barstate.islast
+    var table status_table = table.new(position.top_right, 2, 7, border_width=1)
+    table.cell(status_table, 0, 0, "4S v1.8g Status", bgcolor=color.new(color.blue, 80))
+    table.cell(status_table, 1, 0, "Value", bgcolor=color.new(color.blue, 80))
+    
+    table.cell(status_table, 0, 1, "Squeeze")
+    table.cell(status_table, 1, 1, bool_sqzOn ? "ON" : "OFF", bgcolor=bool_sqzOn ? color.red : color.green)
+    
+    table.cell(status_table, 0, 2, "Momentum")
+    table.cell(status_table, 1, 2, str.tostring(float_momentum, "#.##"), bgcolor=float_momentum > 0 ? color.green : color.red)
+
+    table.cell(status_table, 0, 3, "HTF Trend (" + string_htf + ")")
+    table.cell(status_table, 1, 3, bool_htfBullTrend ? "BULL" : "BEAR", bgcolor=bool_htfBullTrend ? color.green : color.red)
+
+    table.cell(status_table, 0, 4, "Signal Quality")
+    table.cell(status_table, 1, 4, str.tostring(float_signalQuality, "#.#") + "/100", bgcolor=bool_highQualitySignal ? color.green : color.orange)
+
+    table.cell(status_table, 0, 5, "Risk Management")
+    table.cell(status_table, 1, 5, bool_riskPause ? "PAUSED" : "ACTIVE", bgcolor=bool_riskPause ? color.red : color.green)
+
+    table.cell(status_table, 0, 6, "Consecutive Losses")
+    table.cell(status_table, 1, 6, str.tostring(int_consecutiveLosses))

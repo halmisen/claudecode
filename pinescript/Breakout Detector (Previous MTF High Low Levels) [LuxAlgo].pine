@@ -1,0 +1,439 @@
+// This work is licensed under a Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0) https://creativecommons.org/licenses/by-nc-sa/4.0/
+// © LuxAlgo
+
+//@version=5
+indicator("Breakout Detector (Previous MTF High Low Levels) [LuxAlgo]", 'LuxAlgo - Breakout Detector (Previous MTF High Low Levels)', max_lines_count=500, max_boxes_count=500, max_labels_count=500, max_bars_back=2000, overlay=true)
+//------------------------------------------------------------------------------
+//Settings
+//-----------------------------------------------------------------------------{
+s5             = '     '
+s7             = '       ' 
+s10            = '          '
+opt            = input.string   (    'HTF'     ,'Option:  '+s10 , options=           [   'HTF'  ,    'Mult'   ]          , inline='a', group='Set Higher TimeFrame')
+res            = input.timeframe(     'D'      , '• HTF' +s10+s5                                                         , inline='b', group='Set Higher TimeFrame')
+mlt            = input.int      (      3       , '• Mult'+s10+s5, minval =1, maxval =20, tooltip='Multiple of Current TF', inline='c', group='Set Higher TimeFrame')
+
+iTP            = input.string   (   'W : L'    , 'SL / TP   '   , options=           [  'W : L' ,  'W% : L%'  ]          , inline='1', group='Set Win / Loss Level')
+w              = input.int      (      2       ,  'W : L'+s7    , minval = 0                                             , inline='3', group='Set Win / Loss Level')
+l              = input.int      (      1       ,    ':'         , minval = 0            , tooltip='-> Loss Settings (L)' , inline='3', group='Set Win / Loss Level')
+percW          = input.float    (      5       , 'W% : L%'      , minval = 0.01                                          , inline='2', group='Set Win / Loss Level') / 100
+percL          = input.float    (      2       ,    ':'         , minval = 0.01                                          , inline='2', group='Set Win / Loss Level') / 100
+
+loss           = input.string   (    'RCM'     ,  'Base:'+s7+s10, options=          ['RCM', 'ATR', 'Last Swing']         , inline='4', group=  'Loss Settings (L)' )
+RcmAtrM        = input.int      (      3       ,'• Multiple'+s10, minval =1, maxval =20 , tooltip=   'Multiple Of:\n• Average True Range\n• Range Cumulative Mean'     
+                                                                                                                         , inline='5', group=  'Loss Settings (L)' )
+len            = input.int      (     10       ,'• Swing Length', minval =1, maxval =20 , tooltip='Swing (Length Left)'  , inline='6', group=  'Loss Settings (L)' )
+
+INV            = color.new      (color.blue  , 100)
+cTP            = input.color    (#2157f3     ,'TP')
+cSL            = input.color    (#ff5d00     ,'SL')
+
+border         = input.string   (line.style_dotted, 'Borders', options=[line.style_solid, line.style_dashed, line.style_dotted], tooltip=  "When TP/SL not reached")
+
+bcol           = input.bool     (    true      ,                                  'Show Timeframe Change'                            , group=        "Extra"       )
+falseOutBreak  = input.bool     (    true      ,                                  'Detect False Breakout'                            , inline = 'cFail', group=        "Extra"       ), x = falseOutBreak ? 2 : 0
+cFail          = input.color    (  color.new(color.fuchsia, 80),                ''                                                 , inline = 'cFail', group=        "Extra"       )
+stopAtEndHTF   = input.bool     (    false     ,                                'Cancel TP/SL at end of HTF'                         , group=        "Extra"       )
+
+//Dashboard
+showDash       = input.bool     (    true      , 'Show Dashboard'                                                                    , group=      'Dashboard'     )
+dashLoc        = input.string   (  'Top Right' , 'Location'  , options =         ['Top Right', 'Bottom Right', 'Bottom Left']        , group=      'Dashboard'     )
+textSize       = input.string   (   'Small'    , 'Size'      , options =                  ['Tiny', 'Small', 'Normal']                , group=      'Dashboard'     )
+
+//-----------------------------------------------------------------------------}
+//Calculations
+//-----------------------------------------------------------------------------{
+n  = bar_index
+
+ph = fixnan(ta.pivothigh(len, 1))
+pl = fixnan(ta.pivotlow (len, 1))
+
+atr= ta.atr(200)
+rcm= ta.cum(high - low) / (n+1) // RCM (range cumulative mean)
+
+//-----------------------------------------------------------------------------}
+//UDT
+//-----------------------------------------------------------------------------{
+type Tbreak 
+    bool  act 
+    int   idx 
+    float prc
+    float stp
+
+    bool  fail
+
+    float tp 
+    bool  prof
+
+//-----------------------------------------------------------------------------}
+//Methods/Functions
+//-----------------------------------------------------------------------------{
+p(int x, float y) => chart.point.from_index(x, y)
+
+method box(string s, Tbreak obj) => 
+
+    // TP box
+    box.new(obj.idx, obj.prc, n, obj.tp , bgcolor= color.new(cTP, 85), border_color= 
+     s == 'fail' ? INV : s == 'prof' or   (obj.prc > obj.stp and close > obj.prc) 
+                                     or   (obj.prc < obj.stp and close < obj.prc)                                         ?  cTP   : INV             ,
+     border_style =      s == 'none' and ((obj.prc > obj.stp and close > obj.prc and close < obj.tp and close > obj.stp) 
+                                     or   (obj.prc < obj.stp and close < obj.prc and close > obj.tp and close < obj.stp)) ? border : line.style_solid)
+
+    // SL box 
+    box.new(obj.idx, obj.prc, n, obj.stp, bgcolor= color.new(cSL, 85), border_color= 
+     s == 'prof' ? INV : s == 'fail' or   (obj.prc > obj.stp and close < obj.prc) 
+                                     or   (obj.prc < obj.stp and close > obj.prc)                                         ?  cSL   : INV             ,
+     border_style =      s == 'none' and ((obj.prc > obj.stp and close < obj.prc and close < obj.tp and close > obj.stp) 
+                                     or   (obj.prc < obj.stp and close > obj.prc and close > obj.tp and close < obj.stp)) ? border : line.style_solid)
+
+method update(Tbreak br, bool a, int i, float p, float s, bool f, float t, bool w) => br.act := a, br.idx := i, br.prc := p, br.stp := s, br.fail := f, br.tp := t, br.prof := w
+
+method lab(string s, string pos, color col, color txtcol) => label.new(
+               n                   , close
+             , yloc      = pos == 'top' ? yloc.abovebar          : yloc.belowbar
+             , style     = pos == 'top' ? label.style_label_down : label.style_label_up
+             , color     = col
+             , textcolor = txtcol
+             , size      = size.small
+             , text      = s
+             )
+
+res() => 
+    M = timeframe.multiplier * mlt, strM = str.tostring(M)
+    opt == 'HTF'  ? timeframe.in_seconds(timeframe.period) 
+                 >= timeframe.in_seconds(res)           
+                  ? '' 
+                  : res 
+              : timeframe.isdaily    ? strM   + 'D'  
+              : timeframe.isweekly   ? strM   + 'W' 
+              : timeframe.ismonthly  ? strM   + 'M' 
+         : M >= 1440 
+         ? str.tostring(math.round(M / 1440)) + 'D' 
+         : strM
+
+formatRes(res) => 
+    out = res
+    if not str.contains(res, 'D') and not str.contains(res, 'W') and not str.contains(res, 'M')
+        nRes = str.tonumber(res)
+        if nRes % 60 == 0
+            out := str.format('{0}{1}', nRes / 60,  'h' )
+        else
+            out := str.format('{0}{1}', nRes     , 'min')
+    out
+
+//-----------------------------------------------------------------------------}
+//Execution
+//-----------------------------------------------------------------------------{
+fres = res(), tfCh = timeframe.change(fres) 
+
+var line prevh = na, var crossph = false, var max = high, var max_x1  = 0
+var line prevl = na, var crosspl = false, var min = low , var min_x1  = 0
+
+var countBrOut_TT = 0, var count_F_BrOut_TT = 0, var countTP_TT = 0, var countSL_TT = 0, var countWn_TT = 0, var countLs_TT = 0
+var countBrOut_Bl = 0, var count_F_BrOut_Bl = 0, var countTP_Bl = 0, var countSL_Bl = 0, var countWn_Bl = 0, var countLs_Bl = 0
+var countBrOut_Br = 0, var count_F_BrOut_Br = 0, var countTP_Br = 0, var countSL_Br = 0, var countWn_Br = 0, var countLs_Br = 0
+
+brOutBl = false, falseBl = false, prof_Bl = false, fail_Bl = false, brOutBr = false, falseBr = false, prof_Br = false, fail_Br = false
+
+if tfCh
+    if not crossph
+        prevh.set_x2(max_x1)
+    if not crosspl
+        prevl.set_x2(min_x1)
+
+    prevh  := line.new(max_x1, max, n, max, color = #f23645)
+    prevl  := line.new(min_x1, min, n, min, color = #089981)
+
+    max    := high, max_x1  := n, crossph := false
+    min    := low , min_x1  := n, crosspl := false
+
+else //Update max/min and anchoring points
+    max    := math.max(high     , max  )
+    max_x1 := max  ==  high ? n : max_x1
+
+    min    := math.min(low      , min  )
+    min_x1 := min  ==  low  ? n : min_x1
+
+if not crossph
+    prevh.set_x2(n)
+
+if close > prevh.get_y2()
+    crossph := true
+
+if not crosspl
+    prevl.set_x2(n)
+
+if close < prevl.get_y2()
+    crosspl := true
+   
+var bxTopBreak = Tbreak.new(false, na, na, na, na, na, na)
+var bxBtmBreak = Tbreak.new(false, na, na, na, na, na, na)
+
+//Break-out
+ATRok = iTP == 'W : L' and loss == 'ATR' ? n > 200 : true
+top   = prevh.get_y2(), breakTop = crossph and not crossph[1] and ATRok and not bxTopBreak.act
+btm   = prevl.get_y2(), breakBtm = crosspl and not crosspl[1] and ATRok and not bxBtmBreak.act
+
+method poly(Tbreak T) => 
+
+    p           = array.new<chart.point>()
+    p.unshift(chart.point.from_index(  n  , T.prc))
+    p.unshift(chart.point.from_index(  n  , T.tp ))
+    p.unshift(chart.point.from_index(T.idx, T.tp ))
+    p.unshift(chart.point.from_index(T.idx, T.prc))
+    polyline.new(p, line_color=INV
+       , fill_color=color.new(color.green, 75))
+
+    p          := array.new<chart.point>()
+    p.unshift(chart.point.from_index(  n  , T.stp))
+    p.unshift(chart.point.from_index(T.idx, T.stp))
+    p.unshift(chart.point.from_index(T.idx, T.prc))
+    p.unshift(chart.point.from_index(  n  , T.prc))
+    polyline.new(p, line_color=INV
+       , fill_color=color.new(color.red  , 75))
+
+for poly in polyline.all
+    poly.delete()
+
+
+// While already in position, there is a break in the same direction, this will be ignored
+// example -> bullish position, bullish break -> ignored
+switch
+
+    breakTop  =>
+
+        brOutBl := true, countBrOut_TT += 1, countBrOut_Bl += 1, '▲'.lab('btm', color(na), #089981)
+
+        ls = iTP == 'W% : L%' 
+           ? close * (1 - percL) 
+           : loss == 'ATR' 
+              ? close - (atr * RcmAtrM) 
+              : loss == 'RCM' 
+                  ? close - (rcm * RcmAtrM) 
+                  : pl
+        pf = iTP == 'W% : L%' 
+           ?  close * (1 + percW) 
+           : loss == 'ATR'
+              ?  close + ((atr * RcmAtrM) * (w/l))
+              : loss == 'RCM'
+                  ?  close + ((rcm * RcmAtrM) * (w/l))
+                  :  close +   (close - pl)   * (w/l) 
+        
+        bxTopBreak.update(true , n , close, ls, false, pf, false)
+
+        bxTopBreak.poly()
+
+    bxTopBreak.act =>
+        switch       
+            breakBtm or (stopAtEndHTF  and        tfCh)    =>      
+                switch 
+                    close >= bxTopBreak.prc => 
+                        switch 
+                            close <  bxTopBreak.tp  => countWn_TT += 1, countWn_Bl += 1 
+                            =>                         countWn_TT += 1, countWn_Bl += 1
+                                                     , countTP_TT += 1, countTP_Bl += 1
+                    =>
+                        switch
+                            close >  bxTopBreak.stp => countLs_TT += 1, countLs_Bl += 1
+                            =>                         countLs_TT += 1, countLs_Bl += 1
+                                                     , countSL_TT += 1, countSL_Bl += 1
+
+                bxTopBreak.act   := false                                               
+                'none'.box(bxTopBreak)
+
+            (n    - bxTopBreak.idx < x and close < top)    =>          
+                falseBl          := true              
+             ,   'F'.lab('top', cFail, color.white)                           
+             ,  count_F_BrOut_TT += 1
+             ,  count_F_BrOut_Bl += 1
+             ,  bxTopBreak.update(false, na, na, na, na, na, na)                                                                                
+
+            high  > bxTopBreak.tp  and not bxTopBreak.prof => 
+                bxTopBreak.prof  := true 
+             ,  prof_Bl          := true
+             ,  'prof'.box(bxTopBreak)
+             ,  countWn_TT       += 1, countWn_Bl  += 1
+             ,  countTP_TT       += 1, countTP_Bl  += 1
+             ,  bxTopBreak.update(false, na, na, na, na, na, na)
+
+            close < bxTopBreak.stp and not bxTopBreak.fail => 
+                bxTopBreak.fail  := true 
+             ,  fail_Bl := true 
+             ,  'fail'.box(bxTopBreak)
+             ,  countLs_TT       += 1, countLs_Bl  += 1
+             ,  countSL_TT       += 1, countSL_Bl  += 1
+             ,  bxTopBreak.update(false, na, na, na, na, na, na)
+
+        bxTopBreak.poly()
+            
+    (bxTopBreak.fail[1]  or 
+     bxTopBreak.prof[1]) => bxTopBreak.update(false, na, na, na, na, na, na)
+
+switch
+
+    breakBtm =>
+
+        brOutBr := true, countBrOut_TT += 1, countBrOut_Br += 1, '▼'.lab('top', color(na), #f23645)
+
+        ls = iTP == 'W% : L%' 
+           ? close * (1 + percL) 
+           : loss == 'ATR' 
+              ? close + (atr * RcmAtrM) 
+             : loss == 'RCM' 
+                  ? close + (rcm * RcmAtrM) 
+                  : ph
+        pf = iTP == 'W% : L%' 
+           ?  close * (1 - percW) 
+           : loss == 'ATR'
+              ?  close - ((atr * RcmAtrM) * (w/l))
+               : loss == 'RCM'
+                  ?  close - ((rcm * RcmAtrM) * (w/l))
+                  :  close -   (ph - close)   * (w/l)
+        
+        bxBtmBreak.update(true , n , close, ls, false, pf, false)
+
+        bxBtmBreak.poly()
+    
+    bxBtmBreak.act =>
+        switch 
+            breakTop or (stopAtEndHTF  and        tfCh)    =>      
+                switch                     
+                    close <= bxBtmBreak.prc =>
+                        switch
+                            close >  bxBtmBreak.tp  => countWn_TT += 1, countWn_Br += 1
+                            =>                         countWn_TT += 1, countWn_Br += 1
+                                                     , countTP_TT += 1, countTP_Br += 1
+                    =>  
+                        switch
+                            close <  bxBtmBreak.stp => countLs_TT += 1, countLs_Br += 1 
+                            =>                         countLs_TT += 1, countLs_Br += 1 
+                                                     , countSL_TT += 1, countSL_Br += 1
+
+                bxBtmBreak.act   := false                                                
+                'none'.box(bxBtmBreak)
+
+            (n    - bxBtmBreak.idx < x and close > btm)    =>                                                   
+                falseBr          := true
+             ,  'F'.lab('btm', cFail, color.white)
+             ,  count_F_BrOut_TT += 1, count_F_BrOut_Br += 1
+             ,  bxBtmBreak.update(false, na, na, na, na, na, na)
+
+            low   < bxBtmBreak.tp  and not bxBtmBreak.prof => 
+                bxBtmBreak.prof  := true 
+             ,  prof_Br          := true
+             ,  'prof'.box(bxBtmBreak)             
+             ,  countWn_TT       += 1, countWn_Br  += 1
+             ,  countTP_TT       += 1, countTP_Br  += 1
+             ,  bxBtmBreak.update(false, na, na, na, na, na, na)
+
+            close > bxBtmBreak.stp and not bxBtmBreak.fail => 
+                bxBtmBreak.fail  := true
+             ,  fail_Br          := true 
+             ,  'fail'.box(bxBtmBreak)             
+             ,  countLs_TT       += 1, countLs_Br  += 1
+             ,  countSL_TT       += 1, countSL_Br  += 1
+             ,  bxBtmBreak.update(false, na, na, na, na, na, na)
+
+        bxBtmBreak.poly()
+
+    (bxBtmBreak.fail[1]  or 
+     bxBtmBreak.prof[1]) => bxBtmBreak.update(false, na, na, na, na, na, na)
+
+if breakTop[1]
+    bxBtmBreak.update(false, na, na, na, false, na, na)
+
+if breakBtm[1] 
+    bxTopBreak.update(false, na, na, na, false, na, na)
+
+//-----------------------------------------------------------------------------}
+//Plot
+//-----------------------------------------------------------------------------{
+t1 = plot(bxTopBreak.prc, style=plot.style_linebr, color=color.new(cTP, 50), display=display.none)
+t2 = plot(bxTopBreak.stp, style=plot.style_linebr, color=color.new(cTP, 50), display=display.none)
+
+b1 = plot(bxBtmBreak.prc, style=plot.style_linebr, color=color.new(cSL, 50), display=display.none)
+b2 = plot(bxBtmBreak.stp, style=plot.style_linebr, color=color.new(cSL, 50), display=display.none)
+
+//-----------------------------------------------------------------------------}
+//Timeframe Change
+//-----------------------------------------------------------------------------{
+bgcolor(bcol and tfCh ? color.new(color.silver, 93) : na)
+
+//-----------------------------------------------------------------------------}
+//Dashboard
+//-----------------------------------------------------------------------------{
+var table_position = dashLoc == 'Bottom Left' ? position.bottom_left 
+  : dashLoc == 'Top Right' ? position.top_right 
+  : position.bottom_right
+
+var table_size = textSize == 'Tiny' ? size.tiny 
+  : textSize == 'Small' ? size.small 
+  : size.normal
+
+var tb = table.new(table_position, falseOutBreak ? 7 : 6, 5
+  , bgcolor      = #1e222d
+  , border_color = #373a46
+  , border_width = 1
+  , frame_color  = #373a46
+  , frame_width  = 1)
+
+if showDash
+    if barstate.isfirst
+        tb    .cell(0, 0,                ''             , text_color = color.white, text_size = table_size)
+        tb    .cell(0, 1,                ''             , text_color = color.white, text_size = table_size)
+        tb    .cell(1, 1,           'Breakouts'         , text_color = color.white, text_size = table_size)
+        tb    .cell(2, 1,             'Wins'            , text_color = color.white, text_size = table_size)
+        tb    .cell(3, 1,           '-> TP hit'         , text_color = color.white, text_size = table_size)
+        tb    .cell(4, 1,            'Losses'           , text_color = color.white, text_size = table_size)
+        tb    .cell(5, 1,           '-> SL hit'         , text_color = color.white, text_size = table_size)
+        if falseOutBreak
+            tb.cell(6, 1,       'False\nBreakouts'      , text_color = color.white, text_size = table_size)
+
+        tb    .cell(0, 2,           'Bullish'           , text_color = color.white, text_size = table_size)
+        tb    .cell(0, 3,           'Bearish'           , text_color = color.white, text_size = table_size)
+        tb    .cell(0, 4,            'Total'            , text_color = color.white, text_size = table_size)
+
+        tb    .merge_cells
+                   (0, 0, falseOutBreak     ? 6 : 5, 0 )
+
+    if barstate.islast
+        tb    .cell(0, 0, str.format('HTF = {0}'
+                     ,    formatRes (fres)             ), text_color = color.white, text_size = table_size)
+        tb    .cell(1, 2, str.tostring(countBrOut_Bl   ), text_color = color.white, text_size = table_size)
+        tb    .cell(1, 3, str.tostring(countBrOut_Br   ), text_color = color.white, text_size = table_size)
+        tb    .cell(1, 4, str.tostring(countBrOut_TT   ), text_color = color.white, text_size = table_size)
+
+        tb    .cell(2, 2, str.tostring(countWn_Bl      ), text_color = color.white, text_size = table_size)
+        tb    .cell(2, 3, str.tostring(countWn_Br      ), text_color = color.white, text_size = table_size)
+        tb    .cell(2, 4, str.tostring(countWn_TT      ), text_color = color.white, text_size = table_size)
+
+        tb    .cell(3, 2, str.tostring(countTP_Bl      ), text_color = color.white, text_size = table_size)
+        tb    .cell(3, 3, str.tostring(countTP_Br      ), text_color = color.white, text_size = table_size)
+        tb    .cell(3, 4, str.tostring(countTP_TT      ), text_color = color.white, text_size = table_size)
+
+        tb    .cell(4, 2, str.tostring(countLs_Bl      ), text_color = color.white, text_size = table_size)
+        tb    .cell(4, 3, str.tostring(countLs_Br      ), text_color = color.white, text_size = table_size)
+        tb    .cell(4, 4, str.tostring(countLs_TT      ), text_color = color.white, text_size = table_size)
+
+        tb    .cell(5, 2, str.tostring(countSL_Bl      ), text_color = color.white, text_size = table_size)
+        tb    .cell(5, 3, str.tostring(countSL_Br      ), text_color = color.white, text_size = table_size)
+        tb    .cell(5, 4, str.tostring(countSL_TT      ), text_color = color.white, text_size = table_size)
+
+        if falseOutBreak
+            tb.cell(6, 2, str.tostring(count_F_BrOut_Bl), text_color = color.white, text_size = table_size)
+            tb.cell(6, 3, str.tostring(count_F_BrOut_Br), text_color = color.white, text_size = table_size)
+            tb.cell(6, 4, str.tostring(count_F_BrOut_TT), text_color = color.white, text_size = table_size)
+
+//-----------------------------------------------------------------------------}
+//Alerts
+//-----------------------------------------------------------------------------{
+alertcondition(brOutBl,'       Bullish Breakout'      , 'Bullish Breakout'      )
+alertcondition(falseBl,'      Bullish False Breakout', 'Bullish False Breakout')
+alertcondition(prof_Bl,'     Bullish TP'            , 'Bullish TP'            )
+alertcondition(fail_Bl,'    Bullish Fail'          , 'Bullish Fail'          )
+alertcondition(brOutBr,'   Bearish Breakout'      , 'Bearish Breakout'      )
+alertcondition(falseBr,'  Bearish False Breakout', 'Bearish False Breakout')
+alertcondition(prof_Br,' Bearish TP'            , 'Bearish TP'            )
+alertcondition(fail_Br,'Bearish Fail'          , 'Bearish Fail'          )
+
+//-----------------------------------------------------------------------------}
