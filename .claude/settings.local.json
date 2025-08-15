@@ -57,7 +57,9 @@
       "Bash(git rm:*)",
       "Bash(del:*)",
       "Bash(wsl:*)",
-      "Bash(Copy-Item:*)"
+      "Bash(Copy-Item:*)",
+      "WebSearch",
+      "WebFetch(domain:www.linkedin.com)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",
