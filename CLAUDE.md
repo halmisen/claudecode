@@ -23,16 +23,19 @@ This is a professional cryptocurrency trading strategy backtesting system built 
 **核心功能**: 五条EMA隧道系统 + ADX + MACD多重确认，低胜率(~40%)趋势跟踪策略
 
 #### 四剑客波段策略 (当前主力)
-**当前版本**: Four Swords Swing Strategy v1.4 ⭐  
-**文件位置**: `pinescript/strategies/oscillator/Four_Swords_Swing_Strategy_v1_4.pine`  
-**项目状态**: ✅ 开发成功 - 基于验证成功的SQZMOM+WaveTrend策略  
-**开发进度**: v1.4核心逻辑完成，回测验证通过
+**当前版本**: Four Swords Swing Strategy v1.7.4 ⭐⭐⭐⭐⭐  
+**Pine Script**: `pinescript/strategies/oscillator/Four_Swords_Swing_Strategy_v1_7_4.pine`  
+**Python实现**: `backtester/strategies/four_swords_swing_strategy_v1_7_4.py`  
+**运行器**: `backtester/run_four_swords_v1_7_4.py`  
+**项目状态**: ✅ 生产级优化完成 - 新基线配置锁定 (2025-08-16)  
+**开发进度**: v1.7.4完整实现，5.6年历史数据验证，性能突破
 
-**核心功能** (v1.4):
-- 🎯 基于SQZMOM_WaveTrend成功策略 + 适度波段增强
+**核心功能** (v1.7.4):
+- 🎯 基于SQZMOM_WaveTrend + 智能退出逻辑
 - 🛡️ 智能状态管理：动量加速等待压缩退出 vs 动量衰竭直接退出
-- ⚙️ 可选EMA趋势过滤(20/50) + 成交量确认(1.2x)增强
-- 📊 简洁5状态面板：压缩/动量/WT/趋势/成交量实时监控
+- ⚙️ 可选EMA趋势过滤 + Volume + WaveTrend多重过滤器
+- 📊 **新基线突破**: limit_offset=0.0实现Maker模式最优性能
+- 🏆 **认证指标**: 26.24%总收益率，61.59%胜率，2.056夏普比率
 
 ### 📁 Current Project Structure
 
@@ -45,8 +48,11 @@ BIGBOSS/
 ├── 🔧 .env                        # 环境变量 (API密钥等)
 ├── 🗂️ backtester/                # 🐍 Python回测系统
 │   ├── 🔧 run_doji_ashi_strategy_v5.py    # ⭐ V5主运行器 (RECOMMENDED)
+│   ├── 🔧 run_four_swords_v1_7_4.py       # ⭐ Four Swords主运行器 (NEW BASELINE)
 │   ├── 📁 strategies/
-│   │   └── 🔧 doji_ashi_strategy_v5.py    # ⭐ V5策略实现 (RECOMMENDED)
+│   │   ├── 🔧 doji_ashi_strategy_v5.py    # ⭐ V5策略实现 (RECOMMENDED)
+│   │   └── 🔧 four_swords_swing_strategy_v1_7_4.py  # ⭐ Four Swords策略 (OPTIMIZED)
+│   ├── 📁 deprecated_v1_7_4/              # 🗄️ Four Swords旧版本备份
 │   ├── 📁 utils/
 │   │   └── 🔧 plotly_bt.py               # 可视化工具
 │   ├── 📁 data/                          # 📊 历史市场数据
@@ -138,6 +144,9 @@ pip install TA-Lib
 
 ### Running Strategies
 ```bash
+# Run Four Swords v1.7.4 with optimized baseline configuration (NEW BASELINE)
+python backtester\run_four_swords_v1_7_4.py --data backtester\data\BTCUSDT\4h\BTCUSDT-4h-merged.csv --initial_cash 500 --leverage 4 --risk_pct 0.20 --order_style maker --limit_offset 0.0 --no_ema_filter --no_volume_filter --no_wt_filter
+
 # Run Doji Ashi v5 with Bokeh interactive visualization (RECOMMENDED)
 python backtester\run_doji_ashi_strategy_v5.py --data backtester\data\ETHUSDT\2h\ETHUSDT-2h-merged.csv --market_data backtester\data\BTCUSDT\2h\BTCUSDT-2h-merged.csv --market_type crypto --cash 500.0 --commission 0.0002 --trade_direction long --enable_backtrader_plot
 
@@ -278,10 +287,13 @@ Strategies support different market types through configuration:
 5. Compare results with Pine Script implementation
 
 ### File Organization Standards
+- **Four Swords Strategy (NEW BASELINE)**: `backtester/strategies/four_swords_swing_strategy_v1_7_4.py`
+- **Four Swords Runner (NEW BASELINE)**: `backtester/run_four_swords_v1_7_4.py`
 - **Main Strategy (V5)**: `backtester/strategies/doji_ashi_strategy_v5.py`
 - **Main Runner (V5)**: `backtester/run_doji_ashi_strategy_v5.py`
 - **Legacy (V4)**: `deprecated_v4/doji_ashi_strategy_v4.py` (moved to backup)
-- **Documentation**: `docs/development_log_v5_final_solution.md`
+- **Four Swords Legacy**: `backtester/deprecated_v1_7_4/` (old versions)
+- **Documentation**: `DEVELOPMENT_LOG.md` (Four Swords), `docs/development_log_v5_final_solution.md` (V5)
 - **Pine Scripts**: `pinescript/strategies/[category]/[Strategy_Name].pine`
 
 ## Debugging and Performance

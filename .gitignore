@@ -62,17 +62,10 @@ backtester/venv/
 # ================================
 # 数据文件（大型数据集）
 # ================================
-*.csv
 *.parquet
 *.h5
 *.hdf5
 *.zip
-preprocessed_*.csv
-
-# 原始数据文件夹中的解压数据
-backtester/data/**/*.csv
-backtester/data/**/*.json
-
 # ================================
 # 日志文件
 # ================================
@@ -83,13 +76,8 @@ logs/
 # 回测和结果
 # ================================
 # 回测结果文件夹
-backtester/backtests/backtest_results/
-backtester/backtests/plots/
-results/
 
 # 生成的报告
-reports/
-*.html
 
 # ================================
 # 配置和脚本
@@ -112,7 +100,6 @@ config/.env*
 # Only ignore local settings and subdirectory .claude/ folders
 
 # AI 对话记录和临时文档
-GEMINI.md
 
 # 临时生成的分析文件 (保留claude-task-YYMMDD.md格式)
 项目文件结构分析执行计划.md
