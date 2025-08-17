@@ -431,6 +431,7 @@ New-Item -Path "path" -ItemType Directory -Force
 - [`docs/workflows/pine-to-python-conversion.md`](docs/workflows/pine-to-python-conversion.md) - Pine Script到Python完整转换流程
 - [`docs/workflows/tradingview-testing-guide.md`](docs/workflows/tradingview-testing-guide.md) - TradingView回测标准和评估矩阵
 - [`docs/workflows/development-workflow.md`](docs/workflows/development-workflow.md) - 命令行操作和Git工作流
+- [`docs/workflows/signal-frequency-debugging-methodology.md`](docs/workflows/signal-frequency-debugging-methodology.md) - ⭐ 信号频率调试方法论 (Four Swords案例研究)
 
 ### 📏 标准规范 (CLAUDE.md引导)
 - [`docs/standards/pine-script-standards.md`](docs/standards/pine-script-standards.md) - Pine Script编码标准和规范
@@ -457,6 +458,7 @@ New-Item -Path "path" -ItemType Directory -Force
 - Pine Script策略开发 → 查看 `docs/standards/pine-script-standards.md`
 - 转换流程规划 → 参考 `docs/workflows/pine-to-python-conversion.md`
 - TradingView回测 → 使用 `docs/workflows/tradingview-testing-guide.md`
+- **信号频率调试** → ⭐ 使用 `docs/workflows/signal-frequency-debugging-methodology.md`
 - Backtrader问题调试 → 检查 `docs/troubleshooting/backtrader-returns-fix.md`
 - V5系统优化 → 参考 `docs/guides/v5-usage.md`
 - 参数设置 → 使用 `docs/standards/trading-parameters.md`

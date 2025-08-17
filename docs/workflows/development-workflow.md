@@ -181,6 +181,22 @@ When reorganizing large numbers of files:
 - Compare results with original Pine Script implementations
 - Document performance characteristics and limitations
 
+### Signal Frequency Debugging ⭐ NEW
+**Critical for Multi-Filter Strategies**: When strategies produce insufficient trades despite sound logic:
+
+1. **Implement Signal Flow Observability**: Add counters at each filtering stage
+2. **Create Baseline Configuration**: Test core logic without filters
+3. **Systematic Filter Analysis**: Test each filter independently with parameter matrices
+4. **Document Signal Loss**: Track conversion rates through each filtering stage
+
+**Key Reference**: [`signal-frequency-debugging-methodology.md`](signal-frequency-debugging-methodology.md) - Complete methodology developed during Four Swords v1.7.4 optimization
+
+**When to Use**: 
+- Strategy produces <15 trades on multi-year data
+- Unclear why signal frequency is low
+- Multiple filter parameters need optimization
+- Converting PineScript strategies to Python for optimization
+
 ## Git Workflow
 
 ### Commit Standards
