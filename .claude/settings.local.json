@@ -98,7 +98,12 @@
       "Bash(backtester/venv/Scripts/pip install git+https://github.com/happydasch/btplotting.git)",
       "Bash(Move-Item \"D:\\BIGBOSS\\claudecode\\pinescript\\strategies\\oscillator\\Four_Swords_Swing_Strategy_v1_4.pine\" \"D:\\BIGBOSS\\claudecode\\pinescript\\strategies\\oscillator\\archived_versions\\v1_4\"\")",
       "Bash(Move-Item \"D:\\BIGBOSS\\claudecode\\pinescript\\strategies\\oscillator\\Four_Swords_Swing_Strategy_v1_4_1_debug.pine\" \"D:\\BIGBOSS\\claudecode\\pinescript\\strategies\\oscillator\\archived_versions\\v1_4\"\")",
-      "Bash(Move-Item \"D:\\BIGBOSS\\claudecode\\pinescript\\strategies\\oscillator\\Four_Swords_Swing_Strategy_v1_5.pine\" \"D:\\BIGBOSS\\claudecode\\pinescript\\strategies\\oscillator\\archived_versions\\v1_5\"\")"
+      "Bash(Move-Item \"D:\\BIGBOSS\\claudecode\\pinescript\\strategies\\oscillator\\Four_Swords_Swing_Strategy_v1_5.pine\" \"D:\\BIGBOSS\\claudecode\\pinescript\\strategies\\oscillator\\archived_versions\\v1_5\"\")",
+      "Bash(Test-Path \"D:\\BIGBOSS\\claudecode\\backtester\\venv\" -PathType Container)",
+      "Bash(\"D:\\BIGBOSS\\claudecode\\backtester\\venv\\Scripts\\python.exe\" --version)",
+      "Bash(\"D:\\BIGBOSS\\claudecode\\backtester\\venv\\Scripts\\pip.exe\" list)",
+      "Bash(\"D:\\BIGBOSS\\claudecode\\backtester\\venv\\Scripts\\python.exe\" -c \"import backtrader as bt; import pandas as pd; import numpy as np; print(''Core dependencies verified'')\")",
+      "Bash(\"backtester\\venv\\Scripts\\python.exe\" -c \"from backtester.strategies.four_swords_swing_strategy_v1_7_4 import FourSwordsSwingStrategyV174; print(''Four Swords strategy import verified'')\")"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",

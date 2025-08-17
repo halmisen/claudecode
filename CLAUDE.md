@@ -79,8 +79,6 @@ BIGBOSS/
 │   └── 📄 *.html                  # Bokeh交互式图表
 ├── 📁 scripts/                    # 🔧 辅助脚本
 │   └── 🔧 download_data.py        # 数据下载脚本
-├── 📁 examples/                   # 📚 使用示例
-│   └── 🔧 run_csv_and_plot.py     # CSV绘图示例
 ├── 📁 config/                     # ⚙️ 配置文件
 │   ├── 📄 requirements.txt         # 主要依赖
 │   └── 📄 requirements-local.txt   # 本地专用依赖
@@ -447,7 +445,7 @@ New-Item -Path "path" -ItemType Directory -Force
 - [`docs/guides/context-management.md`](docs/guides/context-management.md) - 大项目上下文管理
 
 ### 🔧 问题修复与故障排除
-- [`docs/troubleshooting/backtrader-returns-fix.md`](docs/troubleshooting/backtrader-returns-fix.md) - 技术问题解决方案
+- [`docs/troubleshooting/backtrader/backtrader-returns-fix.md`](docs/troubleshooting/backtrader/backtrader-returns-fix.md) - 技术问题解决方案
 - [`docs/troubleshooting/v5-development-log.md`](docs/troubleshooting/v5-development-log.md) - V5系统开发日志
 - [`docs/troubleshooting/v4-optimization-log.md`](docs/troubleshooting/v4-optimization-log.md) - V4优化历史记录
 
@@ -459,6 +457,6 @@ New-Item -Path "path" -ItemType Directory -Force
 - 转换流程规划 → 参考 `docs/workflows/pine-to-python-conversion.md`
 - TradingView回测 → 使用 `docs/workflows/tradingview-testing-guide.md`
 - **信号频率调试** → ⭐ 使用 `docs/workflows/signal-frequency-debugging-methodology.md`
-- Backtrader问题调试 → 检查 `docs/troubleshooting/backtrader-returns-fix.md`
+- Backtrader问题调试 → 检查 `docs/troubleshooting/backtrader/backtrader-returns-fix.md`
 - V5系统优化 → 参考 `docs/guides/v5-usage.md`
 - 参数设置 → 使用 `docs/standards/trading-parameters.md`
