@@ -292,6 +292,11 @@ def main():
     parser.add_argument('--summary_csv', default='results/test_summary.csv', help='结果汇总CSV路径')
     parser.add_argument('--write_meta', type=int, default=1, help='是否写入元数据 (1/0)')
     
+    # 调试设置
+    parser.add_argument('--indicators-only', action='store_true', help='DEBUG: 仅计算指标，禁止下单')
+    parser.add_argument('--disable-sqzmom', action='store_true', help='DEBUG: 禁用 SqueezeMomentum 指标')
+    parser.add_argument('--disable-wavetrend', action='store_true', help='DEBUG: 禁用 WaveTrend 指标')
+    
     args = parser.parse_args()
     
     # 创建输出目录
@@ -380,6 +385,11 @@ def main():
         'position_pct': args.risk_pct,
         'min_qty': args.min_qty,
         'qty_step': args.step,
+        
+        # 调试模式
+        'indicators_only': getattr(args, 'indicators_only', False),
+        'disable_sqzmom': getattr(args, 'disable_sqzmom', False),
+        'disable_wavetrend': getattr(args, 'disable_wavetrend', False),
     }
     
     # 添加策略

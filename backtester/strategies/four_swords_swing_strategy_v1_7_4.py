@@ -1,13 +1,13 @@
 """
-Four Swords Swing Strategy v1.7.4 - Backtrader Implementation
+Four Swords Swing Strategy v1.7.4 - Backtrader Implementation (SAFE VERSION)
 Based on: pinescript/strategies/oscillator/Four_Swords_Swing_Strategy_v1_7_4.pine
 
 ⌘ SUMMARY:
-Type: strategy (CLEAN VERSION - NO RELEASE WINDOW INTERFERENCE) 
-Purpose: Pure v1.5 signal logic with clean code architecture
+Type: strategy (SAFE VERSION - 分母防守工程级修复) 
+Purpose: Pure v1.5 signal logic with safe denominators protection
 Key Logic: Direct squeeze release detection + WaveTrend + EMA + Volume filtering
-Core Features: Smart exit strategy (momentum vs squeeze), dual mode filtering
-Status: Production-ready Backtrader implementation
+Core Features: Smart exit strategy (momentum vs squeeze), ZeroDivisionError protection
+Status: Production-ready with safe indicators and warmup protection
 """
 from __future__ import annotations
 
@@ -22,6 +22,18 @@ import pandas as pd
 # --- Backtesting ---
 import backtrader as bt
 import backtrader.indicators as btind
+
+# --- Safe Indicators (工程级分母防护) ---
+try:
+    from indicators.sqzmom_safe import SqueezeMomentumSafe
+    from indicators.wavetrend_safe import WaveTrendSafe
+except ImportError:
+    # 兼容性导入
+    import sys
+    import os
+    sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+    from indicators.sqzmom_safe import SqueezeMomentumSafe
+    from indicators.wavetrend_safe import WaveTrendSafe
 
 # TA-Lib (optional with capability detection)
 try:
@@ -49,131 +61,9 @@ except Exception:
     HAS_PLOTLY_RESAMPLER = False
 
 
-class SqueezeMomentumIndicator(bt.Indicator):
-    """
-    Squeeze Momentum Oscillator (SQZMOM)
-    Based on Bollinger Bands and Keltner Channels compression detection
-    """
-    lines = ('squeeze_on', 'squeeze_off', 'signal_bar', 'momentum')
-    
-    params = (
-        ('bb_length', 20),
-        ('bb_mult', 2.0),
-        ('kc_length', 20), 
-        ('kc_mult', 1.5),
-        ('use_true_range', True),
-    )
-    
-    plotinfo = dict(subplot=True, plotname='Squeeze Momentum')
-    plotlines = dict(
-        momentum=dict(color='blue'),
-        squeeze_on=dict(color='red', _method='bar'),
-        squeeze_off=dict(color='green', _method='bar'),
-        signal_bar=dict(color='yellow', _method='bar')
-    )
-    
-    def __init__(self):
-        # Bollinger Bands calculation
-        self.bb_basis = btind.SimpleMovingAverage(self.data.close, period=self.params.bb_length)
-        self.bb_dev = self.params.bb_mult * btind.StandardDeviation(self.data.close, period=self.params.bb_length)
-        self.bb_upper = self.bb_basis + self.bb_dev
-        self.bb_lower = self.bb_basis - self.bb_dev
-        
-        # Keltner Channels calculation
-        self.kc_ma = btind.SimpleMovingAverage(self.data.close, period=self.params.kc_length)
-        if self.params.use_true_range:
-            self.kc_range = btind.TrueRange(self.data)
-        else:
-            self.kc_range = self.data.high - self.data.low
-        self.kc_rangema = btind.SimpleMovingAverage(self.kc_range, period=self.params.kc_length)
-        self.kc_upper = self.kc_ma + self.kc_rangema * self.params.kc_mult
-        self.kc_lower = self.kc_ma - self.kc_rangema * self.params.kc_mult
-        
-        # Squeeze conditions
-        self.squeeze_on_cond1 = self.bb_lower > self.kc_lower
-        self.squeeze_on_cond2 = self.bb_upper < self.kc_upper
-        self.squeeze_off_cond1 = self.bb_lower < self.kc_lower
-        self.squeeze_off_cond2 = self.bb_upper > self.kc_upper
-        
-        # Momentum calculation (LazyBear method)
-        highest = btind.Highest(self.data.high, period=self.params.kc_length)
-        lowest = btind.Lowest(self.data.low, period=self.params.kc_length)
-        avg_hl = (highest + lowest) / 2.0
-        avg_close = btind.SimpleMovingAverage(self.data.close, period=self.params.kc_length)
-        avg_all = (avg_hl + avg_close) / 2.0
-        source_diff = self.data.close - avg_all
-        
-        # Linear regression slope as momentum (using simple approximation)
-        self._mom = btind.ROC(source_diff, period=self.params.kc_length)
-
-    def next(self):
-        # Calculate squeeze conditions manually
-        squeeze_on = (self.squeeze_on_cond1[0] and self.squeeze_on_cond2[0])
-        squeeze_off = (self.squeeze_off_cond1[0] and self.squeeze_off_cond2[0])
-        
-        # Signal bar: squeeze was on last bar but not current bar
-        prev_squeeze_on = False
-        if len(self) > 1:
-            prev_squeeze_on = (self.squeeze_on_cond1[-1] and self.squeeze_on_cond2[-1])
-        signal_bar = prev_squeeze_on and not squeeze_on
-        
-        self.lines.squeeze_on[0] = float(squeeze_on)
-        self.lines.squeeze_off[0] = float(squeeze_off) 
-        self.lines.signal_bar[0] = float(signal_bar)
-        self.lines.momentum[0] = self._mom[0]
-
-
-class WaveTrendIndicator(bt.Indicator):
-    """
-    WaveTrend Oscillator 
-    Based on EMA of EMA calculations with overbought/oversold detection
-    """
-    lines = ('wt1', 'wt2', 'wt_signal')
-    
-    params = (
-        ('n1', 10),  # Channel Length
-        ('n2', 21),  # Average Length
-    )
-    
-    plotinfo = dict(subplot=True, plotname='WaveTrend')
-    plotlines = dict(
-        wt1=dict(color='blue'),
-        wt2=dict(color='red'), 
-        wt_signal=dict(color='green', _method='bar')
-    )
-    
-    def __init__(self):
-        # Typical price
-        self.ap = (self.data.high + self.data.low + self.data.close) / 3.0
-        
-        # EMA calculations
-        self.esa = btind.ExponentialMovingAverage(self.ap, period=self.params.n1)
-        # Custom absolute value calculation
-        diff = self.ap - self.esa
-        abs_diff = bt.If(diff >= 0, diff, -diff)
-        self.d = btind.ExponentialMovingAverage(abs_diff, period=self.params.n1)
-        
-        # CI calculation with safer division approach
-        # 使用条件表达式避免除零
-        numerator = self.ap - self.esa
-        denominator = 0.015 * self.d
-        safe_denominator = bt.If(denominator > 1e-6, denominator, 1e-6)
-        self.ci = numerator / safe_denominator
-        
-        # TCI (True Commodity Index)
-        self.tci = btind.ExponentialMovingAverage(self.ci, period=self.params.n2)
-        
-        # WaveTrend lines
-        self.wt1 = self.tci
-        self.wt2 = btind.SimpleMovingAverage(self.wt1, period=4)
-        
-        # WaveTrend signal (wt1 > wt2)
-        self.wt_signal = self.wt1 > self.wt2
-    
-    def next(self):
-        self.lines.wt1[0] = self.wt1[0]
-        self.lines.wt2[0] = self.wt2[0]
-        self.lines.wt_signal[0] = float(self.wt_signal[0])
+# 原有指标定义已移至独立的安全指标模块
+# SqueezeMomentumIndicator -> SqueezeMomentumSafe 
+# WaveTrendIndicator -> WaveTrendSafe
 
 
 class FourSwordsSwingStrategyV174(bt.Strategy):
@@ -212,6 +102,9 @@ class FourSwordsSwingStrategyV174(bt.Strategy):
         ('use_confirmed_signal', False),  # Wait 1 bar for confirmation
         ('use_simplified_signals', False),  # Remove restrictive filters
         ('one_position', True),  # 同一时刻仅1笔持仓
+        ('indicators_only', False),  # DEBUG: Only calculate indicators, no trading
+        ('disable_sqzmom', False),  # DEBUG: Disable SqueezeMomentum indicator
+        ('disable_wavetrend', False),  # DEBUG: Disable WaveTrend indicator
         
         # Risk Management
         ('atr_periods', 14),
@@ -227,26 +120,38 @@ class FourSwordsSwingStrategyV174(bt.Strategy):
         ('limit_offset', 0.001),   # maker: place limit below/above close by 0.1%
         ('use_sizer', True),    # Use external sizer for position sizing
         ('leverage', 4.0),      # 杠杆倍数 (参数化)
+        
+        # Safe Math Parameters (工程级防护)
+        ('warmup', 300),        # Warmup期数 (约最长窗口2-3倍)
+        ('debug', False),       # 调试日志开关
     )
     
     def __init__(self):
         """Initialize indicators and state variables"""
         
-        # Core indicators
-        self.sqzmom = SqueezeMomentumIndicator(
-            self.data,
-            bb_length=self.params.bb_length,
-            bb_mult=self.params.bb_mult,
-            kc_length=self.params.kc_length,
-            kc_mult=self.params.kc_mult,
-            use_true_range=self.params.use_true_range
-        )
+        # Core indicators (使用安全版本) - 条件性创建用于调试
+        if not self.params.disable_sqzmom:
+            self.sqzmom = SqueezeMomentumSafe(
+                self.data,
+                bb_length=self.params.bb_length,
+                bb_mult=self.params.bb_mult,
+                kc_length=self.params.kc_length,
+                kc_mult=self.params.kc_mult,
+                use_true_range=self.params.use_true_range,
+                debug=self.params.debug
+            )
+        else:
+            self.sqzmom = None
         
-        self.wavetrend = WaveTrendIndicator(
-            self.data,
-            n1=self.params.wt_n1,
-            n2=self.params.wt_n2
-        )
+        if not self.params.disable_wavetrend:
+            self.wavetrend = WaveTrendSafe(
+                self.data,
+                n1=self.params.wt_n1,
+                n2=self.params.wt_n2,
+                debug=self.params.debug
+            )
+        else:
+            self.wavetrend = None
         
         # EMA trend filter
         if self.params.use_ema_filter:
@@ -294,10 +199,41 @@ class FourSwordsSwingStrategyV174(bt.Strategy):
             'rejected_orders': 0,        # Rejected orders
             'margin_calls': 0,           # Margin call orders
             'canceled_orders': 0,        # Canceled orders
+            'warmup_skipped': 0,         # Warmup期跳过的bar数
         }
+        
+        # 设置Warmup期保护 (工程级防护)
+        self.addminperiod(self.params.warmup)
+        
+        if self.params.debug:
+            print(f"Four Swords Safe Strategy initialized: warmup={self.params.warmup} bars")
         
     def next(self):
         """Main strategy logic executed on each bar"""
+        
+        # Warmup期保护 - 直接返回避免半生不熟计算
+        if len(self.data) < self.params.warmup:
+            self.counters['warmup_skipped'] += 1
+            return
+        
+        # DEBUG: Indicators-only mode - calculate indicators but skip all trading logic
+        if self.params.indicators_only:
+            # Force evaluation of all indicators by accessing their values
+            try:
+                if self.sqzmom is not None:
+                    _ = self.sqzmom.lines.signal_bar[0]
+                    _ = self.sqzmom.lines.momentum[0]
+                if self.wavetrend is not None:
+                    _ = self.wavetrend.lines.wt_signal[0]
+                if self.params.use_ema_filter:
+                    _ = self.ema_fast[0]
+                    _ = self.ema_slow[0]
+                if self.params.use_volume_filter:
+                    _ = self.volume_confirm[0]
+                _ = self.atr[0]
+            except Exception as e:
+                print(f"[INDICATORS_ONLY] Error at bar {len(self)}: {e}")
+            return
         
         # Get current signal conditions
         signal_bar = bool(self.sqzmom.lines.signal_bar[0])
@@ -568,8 +504,14 @@ class FourSwordsSwingStrategyV174(bt.Strategy):
     def stop(self):
         """Print detailed signal flow analysis when backtest completes"""
         print("\n" + "="*70)
-        print("FOUR SWORDS v1.7.4 - SIGNAL FLOW ANALYSIS")
+        print("FOUR SWORDS v1.7.4 SAFE - SIGNAL FLOW ANALYSIS")
         print("="*70)
+        
+        # Safe Math Protection Report
+        print(f"\nSAFE MATH PROTECTION REPORT:")
+        print(f"   Warmup period used:      {self.params.warmup} bars")
+        print(f"   Warmup bars skipped:     {self.counters['warmup_skipped']}")
+        print(f"   Protection status:       ACTIVE")
         
         # Calculate totals
         total_raw = self.counters['raw_signals_long'] + self.counters['raw_signals_short']
