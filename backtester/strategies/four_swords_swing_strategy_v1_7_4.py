@@ -153,8 +153,12 @@ class WaveTrendIndicator(bt.Indicator):
         abs_diff = bt.If(diff >= 0, diff, -diff)
         self.d = btind.ExponentialMovingAverage(abs_diff, period=self.params.n1)
         
-        # CI calculation (simple division with small constant to avoid zero)
-        self.ci = (self.ap - self.esa) / (0.015 * self.d + 1e-8)
+        # CI calculation with safer division approach
+        # 使用条件表达式避免除零
+        numerator = self.ap - self.esa
+        denominator = 0.015 * self.d
+        safe_denominator = bt.If(denominator > 1e-6, denominator, 1e-6)
+        self.ci = numerator / safe_denominator
         
         # TCI (True Commodity Index)
         self.tci = btind.ExponentialMovingAverage(self.ci, period=self.params.n2)

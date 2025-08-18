@@ -129,7 +129,8 @@
       "Bash(\"backtester/venv/Scripts/python.exe\" scripts/download_data.py --symbol DOGEUSDT --interval 1d --merge-csv)",
       "Bash(\"backtester/venv/Scripts/python.exe\" -c \"\nimport pandas as pd\nimport os\n\nsymbols = [''SUIUSDT'', ''1000PEPEUSDT'', ''AAVEUSDT'', ''XRPUSDT'', ''WLDUSDT'', ''DOGEUSDT'']\nintervals = [''1h'', ''2h'', ''4h'', ''1d'']\n\nprint(''=== 数据验证报告 ===\\n'')\n\nfor symbol in symbols:\n    print(f''📊 {symbol}:'')\n    for interval in intervals:\n        file_path = f''backtester/data/{symbol}/{interval}/{symbol}-{interval}-merged.csv''\n        if os.path.exists(file_path):\n            df = pd.read_csv(file_path)\n            print(f''  {interval}: {len(df):,} 条记录, 时间范围: {df.iloc[0, 0]} → {df.iloc[-1, 0]}'')\n        else:\n            print(f''  {interval}: ❌ 文件不存在'')\n    print()\n\")",
       "Bash(\"backtester/venv/Scripts/python.exe\" -c \"\nimport pandas as pd\nimport os\n\nsymbols = [''SUIUSDT'', ''1000PEPEUSDT'', ''AAVEUSDT'', ''XRPUSDT'', ''WLDUSDT'', ''DOGEUSDT'']\nintervals = [''1h'', ''2h'', ''4h'', ''1d'']\n\nprint(''=== DATA VERIFICATION REPORT ==='')\nprint()\n\nfor symbol in symbols:\n    print(f''{symbol}:'')\n    for interval in intervals:\n        file_path = f''backtester/data/{symbol}/{interval}/{symbol}-{interval}-merged.csv''\n        if os.path.exists(file_path):\n            df = pd.read_csv(file_path)\n            print(f''  {interval}: {len(df):,} records, time range: {df.iloc[0, 0]} -> {df.iloc[-1, 0]}'')\n        else:\n            print(f''  {interval}: File not found'')\n    print()\n\")",
-      "Bash(\"backtester/venv/Scripts/python.exe\":*)"
+      "Bash(\"backtester/venv/Scripts/python.exe\":*)",
+      "Bash(\"../backtester/venv/Scripts/python.exe\":*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",

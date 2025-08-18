@@ -329,8 +329,10 @@ def main():
     # 加载数据
     try:
         data_feed, (first_dt, last_dt, total_bars) = load_csv_as_feed(args.data)
-        # 给数据源添加名称，解决backtrader-plotting标签解析问题
-        cerebro.adddata(data_feed, name='BTCUSDT')
+        # 从文件路径自动提取交易对名称
+        data_filename = os.path.basename(args.data)
+        symbol_name = data_filename.split('-')[0] if '-' in data_filename else 'UNKNOWN'
+        cerebro.adddata(data_feed, name=symbol_name)
     except Exception as e:
         print(f"数据加载失败: {e}")
         sys.exit(1)
