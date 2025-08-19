@@ -12,9 +12,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Multi-File Strategy Generation System
 - IMPERATIVE: When user mentions "generate strategy files", "create multiple files", "batch generate", or similar multi-file requests, use the multi-file output system
+- **Explicit Trigger Required**: Only activate when user includes `[MULTIFILE]` or `[BATCH]` tags in their request to avoid false triggers
 - Execute using JSON payload format followed by processing script
 - Provide output as a single JSON object following the schema below
 - NEVER include explanatory text or markdown outside the JSON structure
+- **Validation**: Verify file paths are valid, follow naming conventions, and won't overwrite critical files
 
 #### Multi-File JSON Schema:
 ```json
@@ -36,13 +38,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Strategy Development Performance Tracking
 - IMPERATIVE: When user mentions "task stats", "get task stats", "development costs", or similar performance queries, IMMEDIATELY execute the task stats script
-- **Primary Command**: `bash "D:\BIGBOSS\claudecode\.claude\functions\task\task_stats.sh"`
+- **Primary Command**: `bash ".claude/functions/task/task_stats.sh"`
 - **Script Options**:
   - `bash .claude/functions/task/task_stats.sh` - Auto-detects most recent Task session
   - `bash .claude/functions/task/task_stats.sh session_id.jsonl` - Analyzes specific session
+- **Output Format**: Standardized JSON with fields: tokens, duration, cost_breakdown, steps, errors
+- **Output Location**: `results/task_stats/` with filename including timestamp and session ID
+- **Cross-platform**: PowerShell version available as `.claude/functions/task/task_stats.ps1`
 - Track token usage, execution time, and cost efficiency for strategy development tasks
 - Monitor optimization iterations and their cost-benefit ratios
-- Provides detailed breakdown of Task agent operations with cost analysis and efficiency metrics
 
 ### Parallel Strategy Development Workflow
 - IMMEDIATE EXECUTION: For complex strategy development, launch multiple parallel tasks
@@ -57,6 +61,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Intelligent Backtesting Command System
 - IMPERATIVE: When user mentions "run backtest", "optimize strategy", "parameter sweep", automatically convert to appropriate backtesting commands
 - Support natural language backtesting requests with automatic parameter translation
+- **Data Path Validation**: Verify CSV files exist before generating commands; provide download instructions if missing
+- **Parameter Boundaries**: Enforce safe limits - leverage (1-20), risk_pct (0-0.5), commission bounds
+- **Dry-run Support**: Include `--dry-run` flag suggestions for command validation without execution
 
 #### Command Translation Examples:
 ```bash
@@ -78,12 +85,18 @@ python backtester/run_four_swords_v1_7_4.py --data backtester/data/DOGEUSDT/2h/D
 ```
 
 #### Natural Language Parameter Mapping:
-- "high leverage" → `--leverage 10`
-- "conservative" → `--leverage 2 --risk_pct 0.10`
-- "aggressive" → `--leverage 5 --risk_pct 0.30`
+- "high leverage" → `--leverage 10` (max 20)
+- "conservative" → `--leverage 2 --risk_pct 0.10 --limit_offset 0.001`
+- "aggressive" → `--leverage 5 --risk_pct 0.30 --limit_offset 0.0`
 - "maker orders" → `--order_style maker --commission 0.0002`
 - "taker orders" → `--order_style taker --commission 0.0005`
 - "no filters" → `--no_ema_filter --no_volume_filter --no_wt_filter`
+- "safe mode" → `--leverage 2 --risk_pct 0.05 --warmup_bars 50`
+- "high frequency" → `--min_qty 0.001 --step 0.0005`
+- "low frequency" → `--min_qty 0.01 --step 0.01`
+- "parameter sweep" → Multiple commands with parameter ranges
+- "multi-timeframe" → Commands for 1h, 4h, 1d intervals
+- "multi-symbol" → Commands across BTCUSDT, ETHUSDT, major altcoins
 
 ## Project Architecture
 
@@ -213,34 +226,55 @@ The codebase uses **graceful degradation** with capability detection:
 ## Common Commands
 
 ### Environment Setup
-```bash
+
+**Windows (PowerShell)**:
+```powershell
 # Activate virtual environment
-backtester\venv\Scripts\activate
+backtester\venv\Scripts\Activate.ps1
 
 # Install core dependencies 
-pip install backtrader pandas numpy backtrader-plotting
+python -m pip install backtrader pandas numpy backtrader-plotting
 
 # Install optional TA-Lib (requires precompiled binary)
-pip install TA-Lib
+python -m pip install TA-Lib
+```
+
+**Linux/macOS/WSL (Bash)**:
+```bash
+# Activate virtual environment
+source backtester/venv/bin/activate
+
+# Install core dependencies 
+python -m pip install backtrader pandas numpy backtrader-plotting
+
+# Install optional TA-Lib (requires precompiled binary)
+python -m pip install TA-Lib
 ```
 
 ### Running Strategies
-```bash
+
+**Windows (PowerShell)**:
+```powershell
 # Run Four Swords v1.7.4 with optimized baseline configuration (NEW BASELINE)
 python backtester\run_four_swords_v1_7_4.py --data backtester\data\BTCUSDT\4h\BTCUSDT-4h-merged.csv --initial_cash 500 --leverage 4 --risk_pct 0.20 --order_style maker --limit_offset 0.0 --no_ema_filter --no_volume_filter --no_wt_filter
 
 # Run Doji Ashi v5 with Bokeh interactive visualization (RECOMMENDED)
 python backtester\run_doji_ashi_strategy_v5.py --data backtester\data\ETHUSDT\2h\ETHUSDT-2h-merged.csv --market_data backtester\data\BTCUSDT\2h\BTCUSDT-2h-merged.csv --market_type crypto --cash 500.0 --commission 0.0002 --trade_direction long --enable_backtrader_plot
+```
 
-# Run with custom parameters
-python backtester\run_doji_ashi_strategy_v5.py --data [data_file] --market_type crypto --cash 1000 --leverage 2.0 --atr_multiplier 2.0
+**Linux/macOS/WSL (Bash)**:
+```bash
+# Run Four Swords v1.7.4 with optimized baseline configuration (NEW BASELINE)
+python backtester/run_four_swords_v1_7_4.py --data backtester/data/BTCUSDT/4h/BTCUSDT-4h-merged.csv --initial_cash 500 --leverage 4 --risk_pct 0.20 --order_style maker --limit_offset 0.0 --no_ema_filter --no_volume_filter --no_wt_filter
 
-# Historical reference (v4 - deprecated)
-python backtester\run_doji_ashi_strategy_v4.py --data [data_file] --market_type crypto --enable_plotly --plot_theme plotly_dark
+# Run Doji Ashi v5 with Bokeh interactive visualization (RECOMMENDED)
+python backtester/run_doji_ashi_strategy_v5.py --data backtester/data/ETHUSDT/2h/ETHUSDT-2h-merged.csv --market_data backtester/data/BTCUSDT/2h/BTCUSDT-2h-merged.csv --market_type crypto --cash 500.0 --commission 0.0002 --trade_direction long --enable_backtrader_plot
 ```
 
 ### Data Download
-```bash
+
+**Windows (PowerShell)**:
+```powershell
 # Download 4-hour BTCUSDT data
 python scripts\download_data.py --symbol BTCUSDT --interval 4h
 
@@ -249,6 +283,18 @@ python scripts\download_data.py --symbol ETHUSDT --interval 2h --merge-csv
 
 # Download COIN-M futures data
 python scripts\download_data.py --symbol BTCUSD_PERP --interval 1h --market cm
+```
+
+**Linux/macOS/WSL (Bash)**:
+```bash
+# Download 4-hour BTCUSDT data
+python scripts/download_data.py --symbol BTCUSDT --interval 4h
+
+# Download and merge into single CSV  
+python scripts/download_data.py --symbol ETHUSDT --interval 2h --merge-csv
+
+# Download COIN-M futures data
+python scripts/download_data.py --symbol BTCUSD_PERP --interval 1h --market cm
 ```
 
 ### Visualization Options
@@ -358,6 +404,26 @@ Strategies support different market types through configuration:
 3. **Time Indexing**: Convert timestamps to pandas DatetimeIndex
 4. **Deduplication**: Remove duplicate timestamps, sort chronologically
 5. **Merging**: Optional CSV merging for continuous datasets
+
+## Data Security and Validation
+
+### Data Health Check
+- **Required Tool**: Use `backtester/data_health_check.py --all` to validate data integrity
+- **Minimum Requirements**: OHLCV columns, chronological order, no gaps >24h
+- **Automated Validation**: Check for missing files before backtesting
+- **Size Limits**: Large CSV/ZIP files (>100MB) should not be committed to repository
+
+### Environment Security
+- **Credentials**: Use `.env.example` as template, never commit real API keys
+- **Git Rules**: `.gitignore` must exclude `.env`, large data files, OS-specific paths
+- **Safe Math**: Always use `utils/safe_math.py` functions to prevent division by zero
+- **Type Safety**: Include type annotations and input validation in new code
+
+### Repository Standards
+- **No Absolute Paths**: Use relative paths only, avoid hardcoded disk paths
+- **Cross-platform**: Test commands on both Windows PowerShell and Linux/WSL
+- **Version Control**: Tag strategy versions and include git hash in output metadata
+- **Backup Strategy**: Archive old versions in `deprecated_*` folders before major changes
 
 ## Testing and Development
 
