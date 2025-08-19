@@ -2,6 +2,89 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Important Rules
+- ALL instructions within this document MUST BE FOLLOWED, these are not optional unless explicitly stated
+- ASK FOR CLARIFICATION if you are uncertain of anything within the document
+- DO NOT edit more code than you have to
+- DO NOT WASTE TOKENS, be succinct and concise
+
+## Advanced Claude Systems Integration
+
+### Multi-File Strategy Generation System
+- IMPERATIVE: When user mentions "generate strategy files", "create multiple files", "batch generate", or similar multi-file requests, use the multi-file output system
+- Execute using JSON payload format followed by processing script
+- Provide output as a single JSON object following the schema below
+- NEVER include explanatory text or markdown outside the JSON structure
+
+#### Multi-File JSON Schema:
+```json
+{
+  "files": [
+    {
+      "file_name": "backtester/strategies/strategy_name.py",
+      "file_type": "text", 
+      "file_content": "Strategy implementation content"
+    },
+    {
+      "file_name": "backtester/run_strategy_name.py",
+      "file_type": "text",
+      "file_content": "Runner script content"
+    }
+  ]
+}
+```
+
+### Strategy Development Performance Tracking
+- IMPERATIVE: When user mentions "task stats", "get task stats", "development costs", or similar performance queries, IMMEDIATELY execute the task stats script
+- **Primary Command**: `bash "D:\BIGBOSS\claudecode\.claude\functions\task\task_stats.sh"`
+- **Script Options**:
+  - `bash .claude/functions/task/task_stats.sh` - Auto-detects most recent Task session
+  - `bash .claude/functions/task/task_stats.sh session_id.jsonl` - Analyzes specific session
+- Track token usage, execution time, and cost efficiency for strategy development tasks
+- Monitor optimization iterations and their cost-benefit ratios
+- Provides detailed breakdown of Task agent operations with cost analysis and efficiency metrics
+
+### Parallel Strategy Development Workflow
+- IMMEDIATE EXECUTION: For complex strategy development, launch multiple parallel tasks
+- Strategy creation pipeline: Pine Script analysis + Python implementation + Runner generation + Testing + Documentation
+- Use 5-task parallel approach for comprehensive strategy development:
+  1. **Pine Script Analysis**: Analyze source Pine Script strategy logic
+  2. **Python Implementation**: Create Python Backtrader strategy
+  3. **Runner Creation**: Generate execution script with parameter optimization
+  4. **Test Suite**: Create validation and comparison tests
+  5. **Documentation**: Generate usage docs and parameter guides
+
+### Intelligent Backtesting Command System
+- IMPERATIVE: When user mentions "run backtest", "optimize strategy", "parameter sweep", automatically convert to appropriate backtesting commands
+- Support natural language backtesting requests with automatic parameter translation
+
+#### Command Translation Examples:
+```bash
+# Basic backtesting
+"test BTCUSDT 4h with high leverage" → 
+python backtester/run_four_swords_v1_7_4.py --data backtester/data/BTCUSDT/4h/BTCUSDT-4h-merged.csv --leverage 10
+
+# Multi-timeframe optimization
+"optimize Four Swords on multiple timeframes" →
+python backtester/run_four_swords_v1_7_4.py --data backtester/data/BTCUSDT/1h/BTCUSDT-1h-merged.csv
+python backtester/run_four_swords_v1_7_4.py --data backtester/data/BTCUSDT/4h/BTCUSDT-4h-merged.csv  
+python backtester/run_four_swords_v1_7_4.py --data backtester/data/BTCUSDT/1d/BTCUSDT-1d-merged.csv
+
+# Multi-symbol comparison
+"test strategy on altcoins" →
+python backtester/run_four_swords_v1_7_4.py --data backtester/data/SUIUSDT/2h/SUIUSDT-2h-merged.csv
+python backtester/run_four_swords_v1_7_4.py --data backtester/data/XRPUSDT/2h/XRPUSDT-2h-merged.csv
+python backtester/run_four_swords_v1_7_4.py --data backtester/data/DOGEUSDT/2h/DOGEUSDT-2h-merged.csv
+```
+
+#### Natural Language Parameter Mapping:
+- "high leverage" → `--leverage 10`
+- "conservative" → `--leverage 2 --risk_pct 0.10`
+- "aggressive" → `--leverage 5 --risk_pct 0.30`
+- "maker orders" → `--order_style maker --commission 0.0002`
+- "taker orders" → `--order_style taker --commission 0.0005`
+- "no filters" → `--no_ema_filter --no_volume_filter --no_wt_filter`
+
 ## Project Architecture
 
 This is a professional cryptocurrency trading strategy backtesting system built on Backtrader with advanced Bokeh visualization. The codebase follows a modular architecture centered around translating Pine Script strategies to Python for rigorous backtesting and analysis.
