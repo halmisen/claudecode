@@ -1,0 +1,290 @@
+[
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "2h",
+    "config": "SAFE_ROC_BASELINE",
+    "success": false,
+    "duration": 2.034966,
+    "error": "RegressionTestStrategy.__init__() got an unexpected keyword argument 'initial_cash'"
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "2h",
+    "config": "SAFE_ROC_WITH_FILTERS",
+    "success": false,
+    "duration": 2.040278,
+    "error": "RegressionTestStrategy.__init__() got an unexpected keyword argument 'initial_cash'"
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "config": "SAFE_ROC_BASELINE",
+    "success": false,
+    "duration": 1.023019,
+    "error": "RegressionTestStrategy.__init__() got an unexpected keyword argument 'initial_cash'"
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "config": "SAFE_ROC_WITH_FILTERS",
+    "success": false,
+    "duration": 1.025678,
+    "error": "RegressionTestStrategy.__init__() got an unexpected keyword argument 'initial_cash'"
+  },
+  {
+    "symbol": "ETHUSDT",
+    "timeframe": "2h",
+    "config": "SAFE_ROC_BASELINE",
+    "success": false,
+    "duration": 2.067832,
+    "error": "RegressionTestStrategy.__init__() got an unexpected keyword argument 'initial_cash'"
+  },
+  {
+    "symbol": "ETHUSDT",
+    "timeframe": "2h",
+    "config": "SAFE_ROC_WITH_FILTERS",
+    "success": false,
+    "duration": 2.04322,
+    "error": "RegressionTestStrategy.__init__() got an unexpected keyword argument 'initial_cash'"
+  },
+  {
+    "symbol": "ETHUSDT",
+    "timeframe": "4h",
+    "config": "SAFE_ROC_BASELINE",
+    "success": false,
+    "duration": 1.038166,
+    "error": "RegressionTestStrategy.__init__() got an unexpected keyword argument 'initial_cash'"
+  },
+  {
+    "symbol": "ETHUSDT",
+    "timeframe": "4h",
+    "config": "SAFE_ROC_WITH_FILTERS",
+    "success": false,
+    "duration": 1.033642,
+    "error": "RegressionTestStrategy.__init__() got an unexpected keyword argument 'initial_cash'"
+  },
+  {
+    "symbol": "SOLUSDT",
+    "timeframe": "2h",
+    "config": "SAFE_ROC_BASELINE",
+    "success": false,
+    "duration": 1.776897,
+    "error": "RegressionTestStrategy.__init__() got an unexpected keyword argument 'initial_cash'"
+  },
+  {
+    "symbol": "SOLUSDT",
+    "timeframe": "2h",
+    "config": "SAFE_ROC_WITH_FILTERS",
+    "success": false,
+    "duration": 1.791882,
+    "error": "RegressionTestStrategy.__init__() got an unexpected keyword argument 'initial_cash'"
+  },
+  {
+    "symbol": "SOLUSDT",
+    "timeframe": "4h",
+    "config": "SAFE_ROC_BASELINE",
+    "success": false,
+    "duration": 0.911855,
+    "error": "RegressionTestStrategy.__init__() got an unexpected keyword argument 'initial_cash'"
+  },
+  {
+    "symbol": "SOLUSDT",
+    "timeframe": "4h",
+    "config": "SAFE_ROC_WITH_FILTERS",
+    "success": false,
+    "duration": 0.896158,
+    "error": "RegressionTestStrategy.__init__() got an unexpected keyword argument 'initial_cash'"
+  },
+  {
+    "symbol": "SUIUSDT",
+    "timeframe": "2h",
+    "config": "SAFE_ROC_BASELINE",
+    "success": false,
+    "duration": 0.834547,
+    "error": "RegressionTestStrategy.__init__() got an unexpected keyword argument 'initial_cash'"
+  },
+  {
+    "symbol": "SUIUSDT",
+    "timeframe": "2h",
+    "config": "SAFE_ROC_WITH_FILTERS",
+    "success": false,
+    "duration": 0.836954,
+    "error": "RegressionTestStrategy.__init__() got an unexpected keyword argument 'initial_cash'"
+  },
+  {
+    "symbol": "SUIUSDT",
+    "timeframe": "4h",
+    "config": "SAFE_ROC_BASELINE",
+    "success": false,
+    "duration": 0.307067,
+    "error": "RegressionTestStrategy.__init__() got an unexpected keyword argument 'initial_cash'"
+  },
+  {
+    "symbol": "SUIUSDT",
+    "timeframe": "4h",
+    "config": "SAFE_ROC_WITH_FILTERS",
+    "success": false,
+    "duration": 0.304142,
+    "error": "RegressionTestStrategy.__init__() got an unexpected keyword argument 'initial_cash'"
+  },
+  {
+    "symbol": "XRPUSDT",
+    "timeframe": "2h",
+    "config": "SAFE_ROC_BASELINE",
+    "success": false,
+    "duration": 2.026698,
+    "error": "RegressionTestStrategy.__init__() got an unexpected keyword argument 'initial_cash'"
+  },
+  {
+    "symbol": "XRPUSDT",
+    "timeframe": "2h",
+    "config": "SAFE_ROC_WITH_FILTERS",
+    "success": false,
+    "duration": 2.042301,
+    "error": "RegressionTestStrategy.__init__() got an unexpected keyword argument 'initial_cash'"
+  },
+  {
+    "symbol": "XRPUSDT",
+    "timeframe": "4h",
+    "config": "SAFE_ROC_BASELINE",
+    "success": false,
+    "duration": 0.295495,
+    "error": "RegressionTestStrategy.__init__() got an unexpected keyword argument 'initial_cash'"
+  },
+  {
+    "symbol": "XRPUSDT",
+    "timeframe": "4h",
+    "config": "SAFE_ROC_WITH_FILTERS",
+    "success": false,
+    "duration": 0.298119,
+    "error": "RegressionTestStrategy.__init__() got an unexpected keyword argument 'initial_cash'"
+  },
+  {
+    "symbol": "DOGEUSDT",
+    "timeframe": "2h",
+    "config": "SAFE_ROC_BASELINE",
+    "success": false,
+    "duration": 1.911431,
+    "error": "RegressionTestStrategy.__init__() got an unexpected keyword argument 'initial_cash'"
+  },
+  {
+    "symbol": "DOGEUSDT",
+    "timeframe": "2h",
+    "config": "SAFE_ROC_WITH_FILTERS",
+    "success": false,
+    "duration": 1.934302,
+    "error": "RegressionTestStrategy.__init__() got an unexpected keyword argument 'initial_cash'"
+  },
+  {
+    "symbol": "DOGEUSDT",
+    "timeframe": "4h",
+    "config": "SAFE_ROC_BASELINE",
+    "success": false,
+    "duration": 0.303045,
+    "error": "RegressionTestStrategy.__init__() got an unexpected keyword argument 'initial_cash'"
+  },
+  {
+    "symbol": "DOGEUSDT",
+    "timeframe": "4h",
+    "config": "SAFE_ROC_WITH_FILTERS",
+    "success": false,
+    "duration": 0.303937,
+    "error": "RegressionTestStrategy.__init__() got an unexpected keyword argument 'initial_cash'"
+  },
+  {
+    "symbol": "WLDUSDT",
+    "timeframe": "2h",
+    "config": "SAFE_ROC_BASELINE",
+    "success": false,
+    "duration": 0.770574,
+    "error": "RegressionTestStrategy.__init__() got an unexpected keyword argument 'initial_cash'"
+  },
+  {
+    "symbol": "WLDUSDT",
+    "timeframe": "2h",
+    "config": "SAFE_ROC_WITH_FILTERS",
+    "success": false,
+    "duration": 0.77626,
+    "error": "RegressionTestStrategy.__init__() got an unexpected keyword argument 'initial_cash'"
+  },
+  {
+    "symbol": "WLDUSDT",
+    "timeframe": "4h",
+    "config": "SAFE_ROC_BASELINE",
+    "success": false,
+    "duration": 0.300183,
+    "error": "RegressionTestStrategy.__init__() got an unexpected keyword argument 'initial_cash'"
+  },
+  {
+    "symbol": "WLDUSDT",
+    "timeframe": "4h",
+    "config": "SAFE_ROC_WITH_FILTERS",
+    "success": false,
+    "duration": 0.308899,
+    "error": "RegressionTestStrategy.__init__() got an unexpected keyword argument 'initial_cash'"
+  },
+  {
+    "symbol": "1000PEPEUSDT",
+    "timeframe": "2h",
+    "config": "SAFE_ROC_BASELINE",
+    "success": false,
+    "duration": 0.844557,
+    "error": "RegressionTestStrategy.__init__() got an unexpected keyword argument 'initial_cash'"
+  },
+  {
+    "symbol": "1000PEPEUSDT",
+    "timeframe": "2h",
+    "config": "SAFE_ROC_WITH_FILTERS",
+    "success": false,
+    "duration": 0.849951,
+    "error": "RegressionTestStrategy.__init__() got an unexpected keyword argument 'initial_cash'"
+  },
+  {
+    "symbol": "1000PEPEUSDT",
+    "timeframe": "4h",
+    "config": "SAFE_ROC_BASELINE",
+    "success": false,
+    "duration": 0.306113,
+    "error": "RegressionTestStrategy.__init__() got an unexpected keyword argument 'initial_cash'"
+  },
+  {
+    "symbol": "1000PEPEUSDT",
+    "timeframe": "4h",
+    "config": "SAFE_ROC_WITH_FILTERS",
+    "success": false,
+    "duration": 0.305534,
+    "error": "RegressionTestStrategy.__init__() got an unexpected keyword argument 'initial_cash'"
+  },
+  {
+    "symbol": "AAVEUSDT",
+    "timeframe": "2h",
+    "config": "SAFE_ROC_BASELINE",
+    "success": false,
+    "duration": 1.805051,
+    "error": "RegressionTestStrategy.__init__() got an unexpected keyword argument 'initial_cash'"
+  },
+  {
+    "symbol": "AAVEUSDT",
+    "timeframe": "2h",
+    "config": "SAFE_ROC_WITH_FILTERS",
+    "success": false,
+    "duration": 1.782211,
+    "error": "RegressionTestStrategy.__init__() got an unexpected keyword argument 'initial_cash'"
+  },
+  {
+    "symbol": "AAVEUSDT",
+    "timeframe": "4h",
+    "config": "SAFE_ROC_BASELINE",
+    "success": false,
+    "duration": 0.303777,
+    "error": "RegressionTestStrategy.__init__() got an unexpected keyword argument 'initial_cash'"
+  },
+  {
+    "symbol": "AAVEUSDT",
+    "timeframe": "4h",
+    "config": "SAFE_ROC_WITH_FILTERS",
+    "success": false,
+    "duration": 0.299275,
+    "error": "RegressionTestStrategy.__init__() got an unexpected keyword argument 'initial_cash'"
+  }
+]

@@ -1,105 +1,105 @@
-# 优化建议（ChatGPT/Codex CLI 代理适配）
+# 优化建议与项目结构建议（ChatGPT/Codex CLI 适配）
 
-> 依据 CLAUDE.md 与 AGENTS.md，总结并定制适配 ChatGPT/Codex CLI 的最佳实践，确保在受限沙箱与审批模式下依然稳健可复现。
+> 面向本仓库的结构盘点与可执行的改进建议，结合“Repository Guidelines”。本文件仅提供建议与迁移步骤，未实际移动文件或改代码。
 
-## 工具与沙箱适配
-- 首选补丁写入：避免“多文件 JSON 输出”，使用逐文件补丁（`apply_patch`）创建/修改文件；需要批量时一次补丁内包含多文件段。
-- 渐进式计划：使用 `update_plan` 维护 3–6 步的小计划，保持“恰好一个 in_progress”。在长任务或多阶段实现时更新。
-- 读取限制：单次读取控制在 ≤250 行；优先 `rg`，若不可用（常见）回退 `find/grep/sed` 并记录原因。
-- 审批与网络：在 `on-request` 且网络受限时，避免需要联网的依赖安装/下载；如确需执行，先解释必要性再请求升级。
+## 进度更新（2025-08-19 晚）
 
-## 跨平台命令与路径
-- 相对路径优先：避免 `D:\\...` 绝对路径，使用仓库相对路径，兼容 Windows/WSL/macOS/Linux。
-- 命令双份示例：文档中同时提供 PowerShell 与 Bash 版本；Python 调用使用 `python -m pip`、`python -m venv` 以降低平台差异。
-- Windows 细节：在命令行参数含反斜杠或通配符时给出正确转义与引号示例；生成命令但默认不执行（供用户本地运行）。
+已按“低风险、可回滚”的范围完成首轮整理：
+- 移动脚本与重命名
+  - `batch_backtest_2h.py` → `scripts/batch_backtest_2h.py`
+  - `backtester/debug_sqzmom_only.py` → `backtester/run_sqzmom_debug.py`
+- 文档归档与命名统一
+  - `backtrader_HELP.MD` → `docs/guides/backtrader-help.md`
+  - `test.Multi-File System.md` → `docs/workflows/multi-file-system.md`
+  - `test.Task Stats.md` → `docs/workflows/task-stats.md`
+  - `test.Tool Maker.md` → `docs/workflows/tool-maker.md`
+  - `test.Watch Control.md` → `docs/workflows/watch-control.md`
+- 产物与忽略策略
+  - `.gitignore` 新增忽略顶层 `results/**`、`plots/**`（保留 `.gitkeep`）；同时忽略 `backtester/results/**`
+  - 新增 `results/.gitkeep`、`plots/.gitkeep`
+- 使用文档
+  - 更新 `README.md`：统一使用示例与输出路径，补充冒烟测试与批量 2h 回测说明
 
-## 多文件/批处理工作流
-- 触发词与显式开关：沿用 CLAUDE 的多文件意图，但在 ChatGPT 中以“补丁批量”实现；建议用户在请求中加入 `[PATCH]`/`[BATCH]` 标记避免误触发。
-- 变更最小化：严格“只改所需”，不随意重构邻近模块；输出中明确列出影响文件路径与目的。
-- 回滚友好：按逻辑提交多个较小补丁，必要时便于局部还原。
+待办与后续建议：
+- 输出路径一致性确认（代码侧）
+  - `backtester/run_four_swords_v1_7_4.py`：默认 `--summary_csv results/test_summary.csv`（已符合）
+  - 其余 `run_*.py` 与 `test_*.py`：如有写入文件，确保统一至顶层 `results/` 与 `plots/`
+- 数据策略：是否从版本控制移除 `backtester/data/**`（当前保持不动）。若决定移除，需：
+  - 完善 `scripts/download_data.py` 文档与校验脚本
+  - 在 `docs/` 补充数据获取与健康检查流程
+- 可选：在 `docs/README.md` 增加“历史版本/弃用目录”说明，标注 `backtester/deprecated_v1_7_4/`
+- 可选：增加一个最小化 CI 脚本（仅做路径与文件存在性检查，不跑重回测）
 
-## 回测命令映射（建议与约束）
-- 命令生成为主：在回答中提供可复制的回测命令，但不主动执行；执行前置条件（数据/虚拟环境/依赖）一并列出。
-- 参数检查：在生成命令时声明关键参数边界（`--leverage`、`--risk_pct`、`--commission`、`--limit_offset`、`--warmup_bars`、`--slippage`）。
-- 路径验证与替代：若数据路径常见不存在，附带下载脚本命令（不执行），并标注预期目标文件路径结构。
-- 干跑模式：建议项目支持 `--dry-run` 打印解析后的配置，便于 ChatGPT 在沙箱中验证不执行的情况下完成检查。
+## 项目结构现状与建议（2025-08-19）
 
-## 代码与文档一致性
-- 与 AGENTS.md 对齐：
-  - 文件命名/结构：策略放 `backtester/strategies`、运行器 `backtester/run_*.py`、测试 `backtester/test_*.py`。
-  - 使用 `argparse`、`pathlib` 与 `utils/safe_math.py`；避免零除。
-  - 输出一致：结果写入 `results/test_summary.csv`，图表在 `plots/*.html` 并伴随 `.meta.json`。
-- 注释与类型：新增/修改代码时补充类型注解与简洁 docstring；保持 4 空格缩进。
-- 最小验证脚本：为新增策略补充 `test_*.py` 打印关键指标（权益、交易数、胜率）。
+### 结构扫描（摘要）
+- 顶层：`backtester/`、`scripts/`、`config/`、`docs/`、`pinescript/`、`plots/`、`results/`、`.claude/`、多份辅助文档与测试说明。
+- 运行入口：`backtester/run_doji_ashi_strategy_v5.py`、`backtester/run_four_swords_v1_7_4.py`、`backtester/run_four_swords_simple_safe.py`（符合 `run_*.py`）。
+- 策略/指标/工具：`backtester/strategies/`、`backtester/indicators/`、`backtester/utils/`（符合约定）。
+- 历史/弃用：`backtester/deprecated_v1_7_4/`（含旧版 runner 与策略）。
+- 数据：大量 CSV 存于 `backtester/data/**`（与“勿提交大型 CSV”规范冲突）。
+- 结果：`results/**` 目录存在；另有 `backtester/results/test_summary.csv`（位置不规范）。
+- 其他：顶层存在 `batch_backtest_2h.py`、`backtrader_HELP.MD`、`test.*.md`、`test_results/`；`backtester/venv/` 与 `__pycache__` 目录被纳入版本库（应忽略）。
 
-## 质量与安全
-- 变更范围控制：不修复无关问题；若发现潜在缺陷，简述风险与建议而不展开修复。
-- 数据与密钥：不写入真实凭据；维护 `.env.example`；大型 CSV/ZIP 绝不入库。
-- 结果可复现：固定随机种子，输出中标注策略版本与参数；建议在结果/图表的元数据写入版本与生成时间。
+### 发现问题
+- 数据管理：已提交大量 `backtester/data/**` CSV 文件，建议改为本地生成并 `.gitignore` 忽略。
+- 结果路径：`backtester/results/test_summary.csv` 不符合“输出统一到顶层 `results/`”的约定。
+- 可执行入口分布：`batch_backtest_2h.py` 位于仓库根目录，建议统一到 `scripts/`（批量/工具）或 `backtester/`（单回测入口）。
+- 文档分布：`backtrader_HELP.MD`、`test.*.md` 建议并入 `docs/`（如 `docs/guides/`、`docs/workflows/`）。
+- 产物与环境：`backtester/venv/`、`__pycache__` 被纳入仓库，应从版本控制移除并在 `.gitignore` 忽略。
+- 调试脚本命名：`backtester/debug_sqzmom_only.py` 命名不统一，建议 `run_sqzmom_debug.py` 或迁入 `backtester/test_*.py` 体系。
 
-## 输出风格（结合 CLI 要求）
-- 简洁分段：使用短小标题与要点列表；命令/路径/代码使用反引号包裹。
-- 行为前置说明：在执行工具前用 1–2 句说明即将进行的动作；成组动作合并成一次说明。
-- 进度播报：长任务每一阶段收尾给出 1 句进度更新与下一步。
+### 调整建议（不改逻辑，仅路径与命名）
+- 数据与版本控制
+  - 按当前需求：保留 `backtester/data/**` CSV 在版本控制中（不添加忽略）。
+  - 建议：在 `scripts/` 增加数据校验/去重工具，控制仓库体积（如只保留合并文件与近年区间，或将月度明细放入 `data/<SYMBOL>/<INTERVAL>/csv/` 子目录，现状已符合）。
+  - 如需差异同步：建议维护 `scripts/data_manifest.json` 作为数据索引（文件名、SHA256、行数、起止时间），提升可追溯性。
+- 输出与结果
+  - 将所有回测输出统一到顶层 `results/` 与 `plots/`，移除 `backtester/results/` 实际使用；代码层面将默认输出路径更改为 `results/test_summary.csv`。
+- 入口与脚本
+  - 将 `batch_backtest_2h.py` 移至 `scripts/` 并重命名为 `scripts/batch_backtest_2h.py`（保留名不变但归类到脚本目录）。
+  - 将 `backtester/debug_sqzmom_only.py` 重命名为 `backtester/run_sqzmom_debug.py`（与 `run_*.py` 统一）。
+- 文档归档
+  - 将 `backtrader_HELP.MD` 移至 `docs/guides/backtrader-help.md`。
+  - 将 `test.Multi-File System.md`、`test.Task Stats.md`、`test.Tool Maker.md`、`test.Watch Control.md` 移至 `docs/workflows/`，按主题重命名为更清晰的工作流文档。
+- 弃用版本
+  - 保留 `backtester/deprecated_v1_7_4/`，在 `docs/README.md` 添加“历史版本”说明与迁移指引链接。
 
----
+### 迁移步骤（建议的安全顺序）
+1) 清理并忽略非源码产物
+   - 从版本控制移除：`backtester/venv/`、`**/__pycache__/`、`backtester/results/**`、所有 CSV（数据应由下载脚本重建）。
+   - 更新 `.gitignore`，确保上述路径被忽略；保留 `.env.example`，避免提交真实 `.env`。
+2) 统一输出路径
+   - 搜索代码中写入 `backtester/results/` 的位置，改为写入顶层 `results/`。
+   - 确保图表输出到 `plots/*.html`，并生成 `.meta.json` 伴随文件。
+3) 归档脚本与文档
+   - 移动 `batch_backtest_2h.py` → `scripts/batch_backtest_2h.py`。
+   - 移动与重命名文档至 `docs/guides/` 或 `docs/workflows/`；更新 README 中的链接。
+4) 命名统一
+   - 将 `backtester/debug_sqzmom_only.py` → `backtester/run_sqzmom_debug.py`（或合并到 `test_*.py`）。
+5) 历史版本标注
+   - 在 `docs/` 添加“版本对照与迁移”小节，指明 `deprecated_v1_7_4` 与 `run_four_swords_v1_7_4.py` 的关系与当前推荐入口。
 
-## ✅ 优化完成状态 (2025-08-19)
+### 可能需修改的代码位置（待确认）
+- 写路径的模块：`backtester/utils/plotly_bt.py`（图表输出）、各 `run_*.py`（CSV/结果路径）。
+- 测试脚本：`backtester/test_*.py` 若写文件路径，应与新目录对齐。
 
-以下优化建议已全部实施完成：
+### 不执行但可复制的辅助命令（示例）
+- 移动批量回测脚本（Bash/PowerShell）：
+  - Bash: `git mv batch_backtest_2h.py scripts/batch_backtest_2h.py`
+  - PowerShell: `git mv .\batch_backtest_2h.py .\scripts\batch_backtest_2h.py`
+- 移动与重命名帮助文档：
+  - Bash: `git mv backtrader_HELP.MD docs/guides/backtrader-help.md`
+  - PowerShell: `git mv .\backtrader_HELP.MD .\docs\guides\backtrader-help.md`
+- 清理与忽略产物（示例 .gitignore 片段）：
+  - `backtester/data/`
+  - `results/*.csv`
+  - `plots/**/*.html`
+  - `**/__pycache__/`
+  - `backtester/venv/`
+  - `.venv/`
 
-### 1. **跨平台与路径规范** ✅
-- ✅ 统一相对路径：`D:\BIGBOSS\claudecode\.claude\...` → `.claude/...`
-- ✅ 双平台命令示例：在CLAUDE.md中添加了PowerShell和Bash版本
-- ✅ 跨平台Python调用：使用 `python -m pip`、`python -m venv`
-- ✅ 任务脚本跨平台：添加了PowerShell版本说明
-
-### 2. **多文件生成与自动化** ✅
-- ✅ 触发词降噪：添加显式 `[MULTIFILE]`/`[BATCH]` 标记要求
-- ✅ 校验与回滚：增加文件路径验证和命名规范检查
-- ✅ 安全验证：防止覆盖关键文件的保护机制
-
-### 3. **任务统计与成本追踪** ✅
-- ✅ 相对路径与缓存目录：创建 `results/task_stats/` 标准化目录
-- ✅ 统一输出格式：建立JSON schema (tokens, duration, cost_breakdown, steps, errors)
-- ✅ 平台适配：文档中明确了PowerShell版本支持
-
-### 4. **智能回测命令映射** ✅
-- ✅ 数据路径验证：添加CSV存在性检查和下载指令生成
-- ✅ 参数边界与预设：leverage (1-20), risk_pct (0-0.5), 安全上限
-- ✅ 组合短语拓展：safe mode, high/low frequency, parameter sweep等
-- ✅ 干跑模式：添加 `--dry-run` 支持建议
-
-### 5. **数据与安全** ✅
-- ✅ `.env.example`：创建了完整的环境变量模板
-- ✅ 数据健康检查：强化 `data_health_check.py` 使用说明
-- ✅ Git规范：明确不提交大型CSV/ZIP与OS专属路径的规则
-
-### 6. **代码规范与测试** ✅
-- ✅ 类型与安全：强调类型注解与 `utils/safe_math.py` 使用
-- ✅ 安全数学：防除零与NaN/inf扩散的标准化要求
-- ✅ 一致的参数入口：argparse注册与默认值一致性要求
-
-### 7. **文档与可用性** ✅
-- ✅ 跨平台命令矩阵：Windows PowerShell与Linux/WSL/Bash示例
-- ✅ 故障排查：新增数据安全和验证部分
-- ✅ 规范统一：建立了统一的安全和验证标准
-
-### 8. **结果与可视化的一致性** ✅
-- ✅ 结果列规范：建立了task_stats目录和JSON输出标准
-- ✅ 元数据标准：为plots/*.meta.json约定schema要求  
-- ✅ 版本标记：要求输出文件名包含版本与git hash
-
----
-
-## 实施总结
-
-采纳以上适配后，ChatGPT 在本仓库中现已实现：
-- ✅ **更稳定地产生可落地改动**（标准化路径和命令）
-- ✅ **跨平台与沙箱限制下保持一致性**（双平台命令支持）
-- ✅ **输出与文档/结果格式严格对齐**（JSON标准化和安全规范）
-- ✅ **"命令建议"与"安全约束"分离**（参数边界和验证机制）
-
-**优化完成日期**: 2025年8月19日  
-**实施状态**: 全部完成 ✅
-
+### 验证清单（迁移后快速自检）
+- `python backtester/test_simple_strategy.py` 能在无数据时给出明确提示；下载后能成功跑通并将输出写入 `results/` 与 `plots/`。
+- `python scripts/download_data.py --symbol BTCUSDT --interval 4h --merge-csv` 正确在 `backtester/data/<SYMBOL>/<INTERVAL>/` 生成合并文件（但不提交）。
+- `python backtester/run_four_swords_v1_7_4.py --data backtester/data/BTCUSDT/4h/BTCUSDT-4h-merged.csv --order_style maker --limit_offset 0.0` 正常运行，生成统一位置的 CSV 与 HTML。

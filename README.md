@@ -1,80 +1,56 @@
 # 加密货币交易策略回测系统
 
-基于 Backtrader 框架的专业级交易策略回测系统，集�?**backtrader-plotting + Bokeh** 高性能交互式可视化�?
+基于 Backtrader 的多策略回测与可视化工具集，配套 TradingView Pine 脚本与数据下载工具。当前主力 Python 运行器为 Four Swords v1.7.4 与 Doji Ashi v5。
 
-## �?主要特�?
+## 快速开始
 
-- **🎯 专业策略**: Four Swords v1.4波段策略 (基于SQZMOM+WaveTrend)
-- **📊 高胜率系�?*: 适合INFP性格的波段交易，目标胜率75%+
-- **🛡�?智能状态管�?*: 动量加速等待压�?vs 动量衰竭直接退�?
-- **⚙️ 灵活配置**: EMA趋势过滤+成交量确认可独立开�?
-- **💱 多市场支�?*: 加密货币 (BTC, ETH, SOL) 和股票市�?
-- **�?现代化架�?*: 基于 Backtrader 原生生态，易于维护
+- 创建虚拟环境: Windows `python -m venv .venv && .venv\Scripts\activate`，macOS/Linux `python3 -m venv .venv && source .venv/bin/activate`
+- 安装依赖: `pip install -r config/requirements.txt`（可选本地增强 `pip install -r config/requirements-local.txt`）
+- 下载数据: `python scripts/download_data.py --symbol BTCUSDT --interval 4h --merge-csv` → 生成 `backtester/data/<SYMBOL>/<INTERVAL>/`
+- 冒烟测试: `python backtester/test_simple_strategy.py`（需要已合并 CSV）
 
-## 🚀 快速开�?
+## 运行示例
 
-### 1. 环境准备
+- Four Swords v1.7.4（Maker 基线）
+  - `python backtester/run_four_swords_v1_7_4.py --data backtester/data/BTCUSDT/4h/BTCUSDT-4h-merged.csv --order_style maker --limit_offset 0.0`
+  - 输出: 汇总 CSV 写入 `results/test_summary.csv`；若提供 `--html plots/xxx.html` 则保存交互图至 `plots/`
 
-```bash
-# 激活虚拟环�?(Windows)
-backtester\venv\Scripts\activate
+- Doji Ashi v5（内置绘图）
+  - `python backtester/run_doji_ashi_strategy_v5.py --data backtester/data/ETHUSDT/2h/ETHUSDT-2h-merged.csv --market_type crypto --enable_backtrader_plot`
+  - 若安装 `backtrader-plotting`，保存至 `plots/doji_ashi_v5_bokeh_*.html`
 
-# 安装V5核心依赖
-pip install backtrader pandas numpy backtrader-plotting
+- 2h 批量回测脚本（并行）
+  - `python scripts/batch_backtest_2h.py`
+  - 该脚本以 `cwd="backtester"` 调用运行器，结果统一写至顶层 `results/2h_comprehensive_backtest/`
 
-# 可选：安装TA-Lib增强性能
-pip install TA-Lib
-```
+- SQZMOM 专项调试（安全）
+  - `python backtester/run_sqzmom_debug.py`
 
-### 2. 主力策略: Four Swords v1.4 ⭐推�?
+## 输出与产物
 
-```bash
-# 加载v1.4策略到TradingView
-# 文件: pinescript/strategies/oscillator/Four_Swords_Swing_Strategy_v1_4.pine
-# 建议时间框架: 4H�?D波段交易
-# 推荐配置: 保持默认设置(初学�?或开启所有过滤器(进阶)
-```
+- 汇总 CSV: 顶层 `results/`（默认 `results/test_summary.csv`）
+- 交互图 HTML: 顶层 `plots/`（伴随生成 `.meta.json` 时保存在同一路径）
+- 产物已经在 `.gitignore` 中忽略：`results/**` 与 `plots/**`（保留 `.gitkeep` 占位）
 
-### 3. Python回测系统 (可�?
+## 项目结构（要点）
 
-```bash
-# 运行Doji Ashi V5策略回测
-python backtester/run_doji_ashi_strategy_v5.py \
-  --data backtester/data/ETHUSDT/2h/ETHUSDT-2h-merged.csv \
-  --market_type crypto \
-  --enable_backtrader_plot
-```
+- `backtester/`: 运行入口（`run_*.py`）、策略（`strategies/`）、指标（`indicators/`）、工具（`utils/`）、本地数据。
+- `scripts/`: 数据工具与批量脚本（例如 `download_data.py`、`batch_backtest_2h.py`）。
+- `config/`: 依赖清单（`requirements*.txt`）。
+- `docs/`: 指南、工作流与标准；`docs/guides/backtrader-help.md` 等。
+- `plots/`、`results/`: 运行产物目录（已忽略版本控制）。
+- `pinescript/`: TradingView 脚本源文件。
 
-## 📁 项目结构
+## 开发与测试建议
 
-```
-BIGBOSS/claudecode/
-├── 📋 CLAUDE.md                    # Claude Code项目指南  
-├── 📋 GEMINI.md                    # Gemini执行官手�?
-├── 📋 README.md                    # 项目概览
-├── 📁 pinescript/strategies/oscillator/
-�?  └── �?Four_Swords_Swing_Strategy_v1_4.pine  # 当前主力策略
-├── 📁 docs/
-�?  ├── 📁 strategies/              # 策略开发文�?
-�?  ├── 📁 archived/               # 归档文档  
-�?  └── 📄 *.md                    # 技术文�?
-└── 📁 backtester/                 # Python回测系统
-```
+- 使用 `argparse` + `pathlib` 管理路径；避免写入 `backtester/results/`，统一写顶层 `results/`。
+- 指标与数学计算使用 `backtester/indicators/*_safe.py` 与 `backtester/utils/safe_math.py`，避免零除等错误。
+- 最小验证：`python backtester/test_simple_strategy.py`；必要时补充小型 `test_*.py` 打印关键指标（收益、交易数、胜率）。
 
-## 📚 Four Swords v1.4 策略特�?
+## 文档与资源
 
-- **🎯 基于SQZMOM+WaveTrend**: 成功策略适度波段增强
-- **🛡�?智能状态管�?*: 动量加速等待压缩退�?vs 动量衰竭直接退�?
-- **⚙️ 可选EMA趋势过滤**: 20/50 EMA趋势确认
-- **📊 成交量确�?*: 1.2x成交量增强信�?
-- **📈 简�?状态面�?*: 压缩/动量/WT/趋势/成交量实时监�?
+- `CLAUDE.md`、`AGENTS.md`：开发者与代理工作流指南。
+- `docs/guides/backtrader-help.md`：Backtrader 逐仓杠杆与仓位实践。
+- `docs/workflows/*.md`：多文件输出、任务统计、工具生成、监控等工作流文档。
 
-## 📖 文档资源
-
-- **📋 [CLAUDE.md](./CLAUDE.md)** - 项目架构和开发指�?
-- **🌲 [Pine Script 标准](./docs/standards/pine-script-standards.md)** - 编码规范
-- **📚 [完整文档索引](./docs/README.md)** - 所有技术文�?
-
----
-
-**专业级交易策略回测系统，专注Four Swords v1.4波段策略开�?🚀**
+—— 专注稳定、可复现实验与统一产出路径，便于持续评估与对比。
